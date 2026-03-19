@@ -1129,6 +1129,28 @@ function showToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+
+// ══════════════════════════════════════════════
+//  ESPONI FUNZIONI AL SCOPE GLOBALE
+//  (necessario con type="module")
+// ══════════════════════════════════════════════
+window.openImportModal = openImportModal;
+window.closeImportModal = closeImportModal;
+window.handleFileSelect = handleFileSelect;
+window.importSet = importSet;
+window.goHome = goHome;
+window.openSet = openSet;
+window.toggleSort = toggleSort;
+window.exportCurrentSet = exportCurrentSet;
+window.setFilter = setFilter;
+window.applyFilters = applyFilters;
+window.toggleExpand = toggleExpand;
+window.toggleOwned = toggleOwned;
+window.changeQty = changeQty;
+window.confirmDelete = confirmDelete;
+window.closeConfirm = closeConfirm;
+window.showToast = showToast;
+
 // Close modals on overlay click
 document.getElementById('importModal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('importModal')) closeImportModal();
