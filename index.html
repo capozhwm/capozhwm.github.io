@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Carte TCG">
+<meta name="theme-color" content="#0a0a0f">
+<title>Collezione Carte TCG</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+
+:root {
+  --bg: #0a0a0f;
+  --surface: #13131c;
+  --surface2: #1a1a26;
+  --border: #252535;
+  --accent: #7c6aff;
+  --accent-dim: rgba(124,106,255,0.15);
+  --green: #4ade80;
+  --green-dim: rgba(74,222,128,0.12);
+  --red: #f87171;
+  --red-dim: rgba(248,113,113,0.12);
+  --gold: #fbbf24;
+  --text: #e8e8f2;
+  --muted: #5a5a7a;
+  --muted2: #3a3a55;
+  --radius: 12px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--muted2); border-radius: 2px; }
+
+/* ── TOPBAR ── */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0.9rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  min-height: 56px;
+}
+
+.topbar-back {
+  background: none; border: none; color: var(--accent);
+  font-size: 1.3rem; cursor: pointer; padding: 0.2rem;
+  display: none;
+}
+
+.topbar-title {
+  font-size: 1.1rem; font-weight: 800; flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.topbar-actions { display: flex; gap: 0.5rem; }
+
+.icon-btn {
+  background: none; border: none; color: var(--muted);
+  font-size: 1.2rem; cursor: pointer; padding: 0.4rem;
+  border-radius: 8px; transition: color 0.15s, background 0.15s;
+}
+.icon-btn:hover { color: var(--text); background: var(--surface2); }
+
+/* ── MAIN CONTENT ── */
+.main { flex: 1; overflow-y: auto; overflow-x: hidden; }
+
+/* ── SCREENS ── */
+.screen { display: none; height: 100%; }
+.screen.active { display: block; }
+
+/* ── HOME ── */
+.home-header {
+  padding: 1.5rem 1rem 0.5rem;
+}
+
+.home-title {
+  font-size: 1.8rem; font-weight: 800; letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--accent), #b06aff);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+.home-sub {
+  font-family: 'Space Mono', monospace; font-size: 0.7rem;
+  color: var(--muted); margin-top: 0.2rem;
+}
+
+.sets-list { padding: 0.75rem 1rem 6rem; display: flex; flex-direction: column; gap: 0.75rem; }
+
+.set-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+  position: relative;
+  overflow: hidden;
+}
+
+.set-card::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--accent);
+  border-radius: 3px 0 0 3px;
+}
+
+.set-card:active { transform: scale(0.98); }
+.set-card:hover { border-color: var(--accent); }
+
+.set-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+.set-card-name { font-weight: 700; font-size: 0.95rem; line-height: 1.3; flex: 1; }
+.set-card-count { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+
+.set-card-progress {
+  margin-top: 0.75rem;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.set-card-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.set-card-stats {
+  display: flex; gap: 1rem; margin-top: 0.6rem;
+  font-family: 'Space Mono', monospace; font-size: 0.65rem; color: var(--muted);
+}
+
+.set-card-delete {
+  position: absolute; right: 0.75rem; bottom: 0.75rem;
+  background: none; border: none; color: var(--muted2);
+  font-size: 0.9rem; cursor: pointer; padding: 0.3rem;
+  border-radius: 6px; transition: color 0.15s, background 0.15s;
+}
+.set-card-delete:hover { color: var(--red); background: var(--red-dim); }
+
+.empty-state {
+  text-align: center; padding: 4rem 2rem;
+  color: var(--muted);
+}
+.empty-icon { font-size: 3rem; margin-bottom: 1rem; display: block; }
+.empty-text { font-size: 0.9rem; line-height: 1.6; }
+
+/* ── FAB ── */
+.fab {
+  position: fixed; right: 1.25rem;
+  bottom: calc(1.25rem + var(--safe-bottom));
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, var(--accent), #9b6aff);
+  border: none; border-radius: 50%;
+  color: white; font-size: 1.5rem;
+  cursor: pointer; box-shadow: 0 4px 20px rgba(124,106,255,0.4);
+  transition: transform 0.15s, box-shadow 0.15s;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.fab:active { transform: scale(0.93); box-shadow: 0 2px 10px rgba(124,106,255,0.3); }
+
+/* ── DETAIL SCREEN ── */
+.detail-stats {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem;
+}
+
+.stats-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem; margin-bottom: 0.75rem;
+}
+
+.stat-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.6rem;
+  text-align: center;
+}
+
+.stat-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 1.2rem; font-weight: 700;
+  color: var(--accent);
+}
+
+.stat-label {
+  font-size: 0.6rem; color: var(--muted); margin-top: 0.1rem;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.progress-bar {
+  height: 6px; background: var(--border);
+  border-radius: 3px; overflow: hidden; margin-bottom: 0.5rem;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  border-radius: 3px; transition: width 0.4s ease;
+}
+
+.progress-label {
+  font-family: 'Space Mono', monospace; font-size: 0.7rem;
+  color: var(--muted); text-align: right;
+}
+
+.lang-stats {
+  display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem;
+}
+
+.lang-chip {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0.25rem 0.5rem;
+  font-family: 'Space Mono', monospace; font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.lang-chip span { color: var(--text); font-weight: 700; }
+
+/* ── SEARCH & FILTERS ── */
+.filters {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem 1rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  position: sticky; top: 0; z-index: 10;
+}
+
+.search-box {
+  display: flex; align-items: center; gap: 0.5rem;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.4rem 0.75rem;
+}
+
+.search-box input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text); font-family: 'Syne', sans-serif; font-size: 0.9rem;
+}
+.search-box input::placeholder { color: var(--muted); }
+.search-icon { color: var(--muted); font-size: 0.85rem; }
+
+.filter-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+.filter-btn {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.filter-btn.active {
+  background: var(--accent-dim); border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── CARDS LIST ── */
+.cards-list { padding: 0.5rem 0.75rem 6rem; display: flex; flex-direction: column; gap: 0.4rem; }
+
+.card-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.card-row.owned { border-color: rgba(74,222,128,0.25); }
+
+.card-row-header {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.7rem 0.75rem;
+  cursor: pointer;
+}
+
+.card-num {
+  font-family: 'Space Mono', monospace; font-size: 0.65rem;
+  color: var(--muted); min-width: 28px;
+}
+
+.card-name { flex: 1; font-size: 0.88rem; font-weight: 600; line-height: 1.3; }
+
+.card-owned-indicator {
+  font-size: 0.7rem; color: var(--green);
+  font-family: 'Space Mono', monospace;
+}
+
+.card-expand-icon {
+  color: var(--muted); font-size: 0.7rem; transition: transform 0.2s;
+}
+
+.card-row.expanded .card-expand-icon { transform: rotate(180deg); }
+
+.card-detail {
+  display: none;
+  padding: 0 0.75rem 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.card-row.expanded .card-detail { display: block; }
+
+/* ── LANG ROWS ── */
+.lang-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.lang-row:last-child { border-bottom: none; }
+
+.lang-label {
+  font-family: 'Space Mono', monospace; font-size: 0.7rem;
+  font-weight: 700; color: var(--muted);
+  min-width: 24px;
+}
+
+.version-group { display: flex; align-items: center; gap: 0.6rem; flex: 1; flex-wrap: wrap; }
+
+.version-item { display: flex; align-items: center; gap: 0.35rem; }
+
+.version-label {
+  font-size: 0.68rem; color: var(--muted);
+  font-family: 'Space Mono', monospace;
+}
+
+.foil-label { color: var(--gold); }
+
+/* Checkbox custom */
+.cb {
+  width: 20px; height: 20px; min-width: 20px;
+  border: 2px solid var(--border); border-radius: 5px;
+  background: var(--bg); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; position: relative;
+}
+
+.cb.checked { background: var(--green-dim); border-color: var(--green); }
+.cb.checked::after { content: '✓'; font-size: 0.7rem; color: var(--green); font-weight: 700; }
+
+.cb.foil.checked { background: rgba(251,191,36,0.12); border-color: var(--gold); }
+.cb.foil.checked::after { color: var(--gold); }
+
+/* Qty control */
+.qty-ctrl {
+  display: none; align-items: center; gap: 0.25rem;
+}
+.qty-ctrl.visible { display: flex; }
+
+.qty-btn {
+  width: 22px; height: 22px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 5px; color: var(--text); font-size: 0.8rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s;
+}
+.qty-btn:active { background: var(--accent-dim); }
+
+.qty-num {
+  font-family: 'Space Mono', monospace; font-size: 0.72rem;
+  min-width: 16px; text-align: center; color: var(--text);
+}
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px 20px 0 0;
+  padding: 1.5rem;
+  width: 100%; max-width: 600px;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding-bottom: calc(1.5rem + var(--safe-bottom));
+}
+
+.modal-overlay.open .modal { transform: translateY(0); }
+
+.modal-title { font-size: 1.2rem; font-weight: 800; margin-bottom: 1.25rem; }
+
+.modal-label {
+  font-size: 0.75rem; color: var(--muted); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 0.4rem; display: block;
+}
+
+.modal-input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.75rem; color: var(--text);
+  font-family: 'Syne', sans-serif; font-size: 0.95rem; outline: none;
+  transition: border-color 0.15s;
+}
+.modal-input:focus { border-color: var(--accent); }
+
+.file-drop {
+  border: 2px dashed var(--border); border-radius: 10px;
+  padding: 2rem; text-align: center; cursor: pointer;
+  transition: all 0.15s; position: relative; margin-bottom: 1rem;
+}
+.file-drop:hover { border-color: var(--accent); background: var(--accent-dim); }
+.file-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.file-drop-icon { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
+.file-drop-text { font-size: 0.85rem; font-weight: 600; }
+.file-drop-hint { font-size: 0.7rem; color: var(--muted); font-family: 'Space Mono', monospace; margin-top: 0.25rem; }
+
+.modal-actions { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
+
+.btn-primary {
+  flex: 1; background: linear-gradient(135deg, var(--accent), #9b6aff);
+  border: none; border-radius: 10px; color: white;
+  font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700;
+  padding: 0.85rem; cursor: pointer; transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:disabled { opacity: 0.4; cursor: default; }
+
+.btn-secondary {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--muted);
+  font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 600;
+  padding: 0.85rem 1.25rem; cursor: pointer; transition: background 0.15s;
+}
+.btn-secondary:hover { background: var(--border); }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: calc(5rem + var(--safe-bottom));
+  left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.7rem 1.25rem;
+  font-size: 0.85rem; font-weight: 600;
+  opacity: 0; transition: all 0.25s; pointer-events: none;
+  white-space: nowrap; z-index: 300;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── CONFIRM DIALOG ── */
+.confirm-overlay {
+  position: fixed; inset: 0; z-index: 250;
+  background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.confirm-overlay.open { opacity: 1; pointer-events: all; }
+
+.confirm-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 1.5rem; width: 100%; max-width: 360px;
+}
+.confirm-title { font-size: 1rem; font-weight: 800; margin-bottom: 0.5rem; }
+.confirm-text { font-size: 0.85rem; color: var(--muted); line-height: 1.5; margin-bottom: 1.25rem; }
+.confirm-actions { display: flex; gap: 0.75rem; }
+
+.btn-danger {
+  flex: 1; background: var(--red-dim); border: 1px solid var(--red);
+  border-radius: 10px; color: var(--red);
+  font-family: 'Syne', sans-serif; font-size: 0.9rem; font-weight: 700;
+  padding: 0.75rem; cursor: pointer;
+}
+
+/* ── LOADING ── */
+.loading {
+  text-align: center; padding: 3rem 1rem;
+  color: var(--muted); font-family: 'Space Mono', monospace; font-size: 0.8rem;
+}
+.spinner {
+  display: inline-block; width: 28px; height: 28px;
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+  margin-bottom: 0.75rem;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.no-results {
+  text-align: center; padding: 3rem 1rem;
+  color: var(--muted); font-size: 0.85rem;
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar" id="topbar">
+  <button class="topbar-back" id="backBtn" onclick="goHome()">‹</button>
+  <div class="topbar-title" id="topbarTitle">Collezione TCG</div>
+  <div class="topbar-actions">
+    <button class="icon-btn" id="sortBtn" title="Ordina" onclick="toggleSort()" style="display:none">⇅</button>
+    <button class="icon-btn" id="exportBtn" title="Esporta CSV" onclick="exportCurrentSet()" style="display:none">↑</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="mainScroll">
+
+  <!-- HOME SCREEN -->
+  <div class="screen active" id="homeScreen">
+    <div class="home-header">
+      <div class="home-title">Collezione TCG</div>
+      <div class="home-sub" id="homeSubtitle">Nessun set caricato</div>
+    </div>
+    <div class="sets-list" id="setsList">
+      <div class="empty-state" id="emptyState">
+        <span class="empty-icon">🃏</span>
+        <div class="empty-text">Nessun set caricato.<br>Premi <strong>+</strong> per importare una lista CSV.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL SCREEN -->
+  <div class="screen" id="detailScreen">
+    <!-- Stats header -->
+    <div class="detail-stats" id="detailStats"></div>
+
+    <!-- Search & filters -->
+    <div class="filters" id="filtersBar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Cerca carta..." oninput="applyFilters()">
+      </div>
+      <div class="filter-row">
+        <button class="filter-btn" id="fAll" onclick="setFilter('all')">Tutte</button>
+        <button class="filter-btn active" id="fMissing" onclick="setFilter('missing')">Mancanti</button>
+        <button class="filter-btn" id="fOwned" onclick="setFilter('owned')">Possedute</button>
+      </div>
+    </div>
+
+    <!-- Cards -->
+    <div class="cards-list" id="cardsList"></div>
+  </div>
+
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fab" onclick="openImportModal()">＋</button>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <div class="modal-title">Importa lista carte</div>
+
+    <div class="file-drop" id="fileDrop">
+      <input type="file" id="csvFileInput" accept=".csv,.txt" onchange="handleFileSelect(event)">
+      <span class="file-drop-icon" id="fileIcon">📂</span>
+      <div class="file-drop-text" id="fileDropText">Seleziona file CSV</div>
+      <div class="file-drop-hint" id="fileDropHint">formato: numero,nome carta</div>
+    </div>
+
+    <label class="modal-label">Nome del set</label>
+    <input type="text" class="modal-input" id="setNameInput" placeholder="Es: Spider-Man SPM">
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeImportModal()">Annulla</button>
+      <button class="btn-primary" id="importBtn" onclick="importSet()" disabled>Importa</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirmTitle">Elimina set</div>
+    <div class="confirm-text" id="confirmText"></div>
+    <div class="confirm-actions">
+      <button class="btn-secondary" onclick="closeConfirm()">Annulla</button>
+      <button class="btn-danger" id="confirmOkBtn">Elimina</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  DATA LAYER — localStorage
+// ══════════════════════════════════════════════
+const DB_KEY = 'tcg_collection_v2';
+
+function loadDB() {
+  try { return JSON.parse(localStorage.getItem(DB_KEY)) || { sets: [] }; }
+  catch { return { sets: [] }; }
+}
+
+function saveDB(db) {
+  localStorage.setItem(DB_KEY, JSON.stringify(db));
+}
+
+function getDB() { return loadDB(); }
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+let currentSetId = null;
+let currentFilter = 'missing';
+let currentSort = 'number'; // 'number' | 'name'
+let pendingCSV = null;
+let confirmCallback = null;
+
+// ══════════════════════════════════════════════
+//  HOME
+// ══════════════════════════════════════════════
+function renderHome() {
+  const db = getDB();
+  const sets = db.sets;
+  const list = document.getElementById('setsList');
+  const empty = document.getElementById('emptyState');
+  const sub = document.getElementById('homeSubtitle');
+
+  list.innerHTML = '';
+
+  if (sets.length === 0) {
+    sub.textContent = 'Nessun set caricato';
+    list.appendChild(empty);
+    return;
+  }
+
+  sub.textContent = `${sets.length} set • ${sets.reduce((a,s) => a + s.cards.length, 0)} carte totali`;
+
+  sets.forEach(set => {
+    const ownedCount = countOwnedCards(set);
+    const total = set.cards.length;
+    const pct = total > 0 ? Math.round((ownedCount / total) * 100) : 0;
+    const foilCount = countFoilCards(set);
+
+    const card = document.createElement('div');
+    card.className = 'set-card';
+    card.innerHTML = `
+      <div class="set-card-header">
+        <div class="set-card-name">${esc(set.name)}</div>
+        <div class="set-card-count">${ownedCount}/${total}</div>
+      </div>
+      <div class="set-card-progress">
+        <div class="set-card-bar" style="width:${pct}%"></div>
+      </div>
+      <div class="set-card-stats">
+        <span>${pct}% completato</span>
+        <span>${total - ownedCount} mancanti</span>
+        ${foilCount > 0 ? `<span>✨ ${foilCount} foil</span>` : ''}
+      </div>
+      <button class="set-card-delete" onclick="confirmDelete(event, '${set.id}', '${esc(set.name)}')">🗑</button>
+    `;
+    card.addEventListener('click', (e) => {
+      if (!e.target.closest('.set-card-delete')) openSet(set.id);
+    });
+    list.appendChild(card);
+  });
+}
+
+function countOwnedCards(set) {
+  return set.cards.filter(c => c.owned && Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0)).length;
+}
+
+function countFoilCards(set) {
+  let n = 0;
+  set.cards.forEach(c => {
+    if (c.owned) Object.values(c.owned).forEach(v => { if (v.foilQty > 0) n++; });
+  });
+  return n;
+}
+
+// ══════════════════════════════════════════════
+//  IMPORT
+// ══════════════════════════════════════════════
+function openImportModal() {
+  pendingCSV = null;
+  document.getElementById('setNameInput').value = '';
+  document.getElementById('importBtn').disabled = true;
+  document.getElementById('fileDropText').textContent = 'Seleziona file CSV';
+  document.getElementById('fileDropHint').textContent = 'formato: numero,nome carta';
+  document.getElementById('fileIcon').textContent = '📂';
+  document.getElementById('importModal').classList.add('open');
+}
+
+function closeImportModal() {
+  document.getElementById('importModal').classList.remove('open');
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const text = ev.target.result;
+    const cards = parseCSV(text);
+    if (cards.length === 0) {
+      showToast('⚠ Nessuna carta trovata nel file');
+      return;
+    }
+    pendingCSV = cards;
+    document.getElementById('fileDropText').textContent = `✓ ${cards.length} carte`;
+    document.getElementById('fileDropHint').textContent = file.name;
+    document.getElementById('fileIcon').textContent = '✅';
+    if (!document.getElementById('setNameInput').value) {
+      const name = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ');
+      document.getElementById('setNameInput').value = name;
+    }
+    document.getElementById('importBtn').disabled = false;
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/);
+  const cards = [];
+  const seen = new Set();
+  for (const line of lines) {
+    const clean = line.trim();
+    if (!clean) continue;
+    // Supporta: "42,Nome" o "42s,Nome" o "42;Nome" o "42 Nome"
+    // Il numero può avere suffisso alfabetico tipo 1s, 2s, 105s
+    const m = clean.match(/^(\d+[a-zA-Z]*)[,;\t]\s*"?(.+?)"?\s*$/) ||
+               clean.match(/^(\d+[a-zA-Z]*)\s+(.+)$/);
+    if (!m) continue;
+    const setCode = m[1];          // es. "105s" o "42"
+    const num = parseInt(setCode); // parte numerica
+    const name = m[2].trim().replace(/^"|"$/g, '');
+    if (!name || seen.has(setCode)) continue;
+    seen.add(setCode);
+    cards.push({ num, setCode, name, owned: {} });
+  }
+  return cards.sort((a, b) => {
+    if (a.num !== b.num) return a.num - b.num;
+    return (a.setCode || '').localeCompare(b.setCode || '');
+  });
+}
+
+function importSet() {
+  if (!pendingCSV || pendingCSV.length === 0) return;
+  const name = document.getElementById('setNameInput').value.trim() || 'Set senza nome';
+  const db = getDB();
+  const set = {
+    id: Date.now().toString(),
+    name,
+    createdAt: new Date().toISOString(),
+    cards: pendingCSV
+  };
+  db.sets.push(set);
+  saveDB(db);
+  closeImportModal();
+  renderHome();
+  showToast(`✓ "${name}" importato (${pendingCSV.length} carte)`);
+}
+
+// ══════════════════════════════════════════════
+//  DELETE SET
+// ══════════════════════════════════════════════
+function confirmDelete(e, setId, setName) {
+  e.stopPropagation();
+  document.getElementById('confirmTitle').textContent = 'Elimina set';
+  document.getElementById('confirmText').textContent = `Eliminare "${setName}"? Tutti i dati di possesso andranno persi.`;
+  confirmCallback = () => deleteSet(setId);
+  document.getElementById('confirmOkBtn').onclick = () => { confirmCallback(); closeConfirm(); };
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+
+function deleteSet(setId) {
+  const db = getDB();
+  db.sets = db.sets.filter(s => s.id !== setId);
+  saveDB(db);
+  renderHome();
+  showToast('Set eliminato');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('open');
+}
+
+// ══════════════════════════════════════════════
+//  DETAIL / CARDS
+// ══════════════════════════════════════════════
+const LANGS = ['IT','EN','JP','KR'];
+
+function openSet(setId) {
+  currentSetId = setId;
+  currentFilter = 'missing';
+  currentSort = 'number';
+  document.getElementById('searchInput').value = '';
+
+  document.getElementById('homeScreen').classList.remove('active');
+  document.getElementById('detailScreen').classList.add('active');
+
+  const db = getDB();
+  const set = db.sets.find(s => s.id === setId);
+  document.getElementById('topbarTitle').textContent = set.name;
+  document.getElementById('backBtn').style.display = 'block';
+  document.getElementById('sortBtn').style.display = 'block';
+  document.getElementById('exportBtn').style.display = 'block';
+  document.getElementById('fab').style.display = 'none';
+
+  setFilter('missing');
+  renderStats(set);
+  mainScroll.scrollTop = 0;
+}
+
+function goHome() {
+  currentSetId = null;
+  document.getElementById('detailScreen').classList.remove('active');
+  document.getElementById('homeScreen').classList.add('active');
+  document.getElementById('topbarTitle').textContent = 'Collezione TCG';
+  document.getElementById('backBtn').style.display = 'none';
+  document.getElementById('sortBtn').style.display = 'none';
+  document.getElementById('exportBtn').style.display = 'none';
+  document.getElementById('fab').style.display = 'flex';
+  renderHome();
+}
+
+function renderStats(set) {
+  const total = set.cards.length;
+  const owned = countOwnedCards(set);
+  const missing = total - owned;
+  const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
+  const foil = countFoilCards(set);
+
+  const langCounts = {};
+  LANGS.forEach(l => {
+    langCounts[l] = set.cards.filter(c => c.owned && c.owned[l] && (c.owned[l].qty > 0 || c.owned[l].foilQty > 0)).length;
+  });
+
+  document.getElementById('detailStats').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-num">${total}</div><div class="stat-label">Totale</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:var(--green)">${owned}</div><div class="stat-label">Possedute</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:var(--red)">${missing}</div><div class="stat-label">Mancanti</div></div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div class="progress-label">${pct}% completato${foil > 0 ? ` · ✨ ${foil} foil` : ''}</div>
+    <div class="lang-stats">
+      ${LANGS.map(l => `<div class="lang-chip">${l} <span>${langCounts[l]}</span></div>`).join('')}
+    </div>
+  `;
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  ['All','Missing','Owned'].forEach(x => {
+    document.getElementById('f'+x).classList.toggle('active', f === x.toLowerCase());
+  });
+  renderCards();
+}
+
+function toggleSort() {
+  currentSort = currentSort === 'number' ? 'name' : 'number';
+  showToast(`Ordine: ${currentSort === 'number' ? 'Numero' : 'Nome'}`);
+  renderCards();
+}
+
+function applyFilters() { renderCards(); }
+
+function renderCards() {
+  const db = getDB();
+  const set = db.sets.find(s => s.id === currentSetId);
+  if (!set) return;
+
+  const search = document.getElementById('searchInput').value.toLowerCase().trim();
+  const list = document.getElementById('cardsList');
+  list.innerHTML = '';
+
+  let cards = [...set.cards];
+
+  // Sort
+  if (currentSort === 'name') {
+    cards.sort((a, b) => a.name.localeCompare(b.name));
+  } else {
+    cards.sort((a, b) => a.num - b.num);
+  }
+
+  // Filter owned status
+  cards = cards.filter(c => {
+    const isOwned = c.owned && Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0);
+    if (currentFilter === 'owned') return isOwned;
+    if (currentFilter === 'missing') return !isOwned;
+    return true;
+  });
+
+  // Search
+  if (search) {
+    cards = cards.filter(c =>
+      c.name.toLowerCase().includes(search) ||
+      String(c.num).includes(search)
+    );
+  }
+
+  if (cards.length === 0) {
+    list.innerHTML = '<div class="no-results">Nessuna carta trovata</div>';
+    return;
+  }
+
+  cards.forEach(c => {
+    const fullCard = set.cards.find(x => x.num === c.num);
+    list.appendChild(buildCardRow(fullCard, set.id));
+  });
+}
+
+function cardId(card) {
+  // Identificatore univoco per ogni carta — usa setCode se disponibile, altrimenti num
+  return card.setCode || String(card.num);
+}
+
+function buildCardRow(card, setId) {
+  const cid = cardId(card);
+  const isOwned = card.owned && Object.values(card.owned).some(v => v.qty > 0 || v.foilQty > 0);
+  const totalQty = card.owned ? Object.values(card.owned).reduce((a,v) => a + (v.qty||0) + (v.foilQty||0), 0) : 0;
+
+  const row = document.createElement('div');
+  row.className = 'card-row' + (isOwned ? ' owned' : '');
+  row.id = `row-${setId}-${cid}`;
+
+  const langRowsHTML = LANGS.map(lang => {
+    const owned = card.owned && card.owned[lang] ? card.owned[lang] : { qty: 0, foilQty: 0 };
+    const normQty = owned.qty || 0;
+    const foilQty = owned.foilQty || 0;
+    return `
+      <div class="lang-row">
+        <div class="lang-label">${lang}</div>
+        <div class="version-group">
+          <div class="version-item">
+            <div class="cb ${normQty > 0 ? 'checked' : ''}"
+              onclick="toggleOwned('${setId}', '${cid}', '${lang}', false)"></div>
+            <span class="version-label">norm</span>
+            <div class="qty-ctrl ${normQty > 0 ? 'visible' : ''}" id="qty-${setId}-${cid}-${lang}-norm">
+              <button class="qty-btn" onclick="changeQty('${setId}', '${cid}', '${lang}', false, -1)">−</button>
+              <span class="qty-num">${normQty}</span>
+              <button class="qty-btn" onclick="changeQty('${setId}', '${cid}', '${lang}', false, +1)">+</button>
+            </div>
+          </div>
+          <div class="version-item">
+            <div class="cb foil ${foilQty > 0 ? 'checked' : ''}"
+              onclick="toggleOwned('${setId}', '${cid}', '${lang}', true)"></div>
+            <span class="version-label foil-label">foil</span>
+            <div class="qty-ctrl ${foilQty > 0 ? 'visible' : ''}" id="qty-${setId}-${cid}-${lang}-foil">
+              <button class="qty-btn" onclick="changeQty('${setId}', '${cid}', '${lang}', true, -1)">−</button>
+              <span class="qty-num">${foilQty}</span>
+              <button class="qty-btn" onclick="changeQty('${setId}', '${cid}', '${lang}', true, +1)">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  row.innerHTML = `
+    <div class="card-row-header" onclick="toggleExpand('${setId}', '${cid}')">
+      <div class="card-num">#${cid}</div>
+      <div class="card-name">${esc(card.name)}</div>
+      ${totalQty > 0 ? `<div class="card-owned-indicator">×${totalQty}</div>` : ''}
+      <div class="card-expand-icon">▾</div>
+    </div>
+    <div class="card-detail">
+      ${langRowsHTML}
+    </div>
+  `;
+
+  return row;
+}
+
+function toggleExpand(setId, cid) {
+  const row = document.getElementById(`row-${setId}-${cid}`);
+  if (row) row.classList.toggle('expanded');
+}
+
+function toggleOwned(setId, cid, lang, isFoil) {
+  const db = getDB();
+  const set = db.sets.find(s => s.id === setId);
+  const card = set.cards.find(c => cardId(c) === cid);
+  if (!card) return;
+
+  if (!card.owned) card.owned = {};
+  if (!card.owned[lang]) card.owned[lang] = { qty: 0, foilQty: 0 };
+
+  const key = isFoil ? 'foilQty' : 'qty';
+  card.owned[lang][key] = card.owned[lang][key] > 0 ? 0 : 1;
+
+  saveDB(db);
+  refreshCardRow(set, card, setId);
+  refreshStats(set);
+}
+
+function changeQty(setId, cid, lang, isFoil, delta) {
+  const db = getDB();
+  const set = db.sets.find(s => s.id === setId);
+  const card = set.cards.find(c => cardId(c) === cid);
+  if (!card) return;
+
+  if (!card.owned) card.owned = {};
+  if (!card.owned[lang]) card.owned[lang] = { qty: 0, foilQty: 0 };
+
+  const key = isFoil ? 'foilQty' : 'qty';
+  card.owned[lang][key] = Math.max(0, (card.owned[lang][key] || 0) + delta);
+
+  saveDB(db);
+  refreshCardRow(set, card, setId);
+  refreshStats(set);
+}
+
+function refreshCardRow(set, card, setId) {
+  const cid = cardId(card);
+  const existing = document.getElementById(`row-${setId}-${cid}`);
+  if (!existing) return;
+  const wasExpanded = existing.classList.contains('expanded');
+  const newRow = buildCardRow(card, setId);
+  if (wasExpanded) newRow.classList.add('expanded');
+
+  const isOwned = card.owned && Object.values(card.owned).some(v => v.qty > 0 || v.foilQty > 0);
+  const shouldShow = currentFilter === 'all' ||
+    (currentFilter === 'owned' && isOwned) ||
+    (currentFilter === 'missing' && !isOwned);
+
+  if (shouldShow) {
+    existing.replaceWith(newRow);
+  } else {
+    existing.style.transition = 'opacity 0.3s';
+    existing.style.opacity = '0';
+    setTimeout(() => existing.remove(), 300);
+  }
+}
+
+function refreshStats(set) {
+  // Re-read from db
+  const db = getDB();
+  const freshSet = db.sets.find(s => s.id === set.id);
+  if (freshSet) renderStats(freshSet);
+}
+
+// ══════════════════════════════════════════════
+//  EXPORT
+// ══════════════════════════════════════════════
+function exportCurrentSet() {
+  if (!currentSetId) return;
+  const db = getDB();
+  const set = db.sets.find(s => s.id === currentSetId);
+  if (!set) return;
+
+  let csv = 'set_number,card_name,language,foil,quantity\n';
+  set.cards.forEach(card => {
+    if (!card.owned) return;
+    LANGS.forEach(lang => {
+      const v = card.owned[lang];
+      if (!v) return;
+      if (v.qty > 0) csv += `${card.num},"${card.name}",${lang},no,${v.qty}\n`;
+      if (v.foilQty > 0) csv += `${card.num},"${card.name}",${lang},si,${v.foilQty}\n`;
+    });
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${set.name.replace(/\s+/g,'_')}_collezione.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV esportato');
+}
+
+// ══════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Close modals on overlay click
+document.getElementById('importModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('importModal')) closeImportModal();
+});
+document.getElementById('confirmOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('confirmOverlay')) closeConfirm();
+});
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+renderHome();
+</script>
+</body>
+</html>
