@@ -514,13 +514,7 @@ body {
   <button class="topbar-back" id="backBtn" onclick="goHome()">‹</button>
   <div class="topbar-title" id="topbarTitle">Collezione TCG</div>
   <div class="topbar-actions">
-    <div id="printMenu" style="position:relative;display:inline-flex">
-      <button class="icon-btn" id="printBtn" title="Stampa liste" onclick="togglePrintMenu()" style="display:inline-flex">🖨</button>
-      <div id="printDropdown" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);border:1px solid var(--border);border-radius:10px;min-width:220px;z-index:200;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.4)">
-        <button onclick="printMissing()" style="display:block;width:100%;padding:0.8rem 1rem;background:none;border:none;color:var(--text);font-family:Syne,sans-serif;font-size:0.9rem;text-align:left;cursor:pointer;border-bottom:1px solid var(--border)">📋 Carte mancanti</button>
-        <button onclick="printNonFoil()" style="display:block;width:100%;padding:0.8rem 1rem;background:none;border:none;color:var(--text);font-family:Syne,sans-serif;font-size:0.9rem;text-align:left;cursor:pointer">✨ Possedute senza foil</button>
-      </div>
-    </div>
+
     <button class="icon-btn" id="sortBtn" title="Ordina" onclick="toggleSort()" style="display:none">⇅</button>
     <button class="icon-btn" id="exportBtn" title="Esporta CSV" onclick="exportCurrentSet()" style="display:none">↑</button>
   </div>
@@ -548,7 +542,13 @@ body {
     <!-- Stats header -->
     <div class="detail-stats" id="detailStats"></div>
 
-    <!-- Search & filters -->
+    <!-- Pulsanti stampa per il set corrente -->
+<div id="printBtns" style="display:flex;gap:0.5rem;padding:0.75rem 1rem 0;border-top:1px solid var(--border);margin-top:0.75rem">
+  <button onclick="printMissingSet()" style="flex:1;padding:0.65rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Syne,sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem">📋 Mancanti</button>
+  <button onclick="printNonFoilSet()" style="flex:1;padding:0.65rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Syne,sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem">✨ Senza foil</button>
+</div>
+
+<!-- Search & filters -->
     <div class="filters" id="filtersBar">
       <div class="search-box">
         <span class="search-icon">🔍</span>
@@ -855,7 +855,6 @@ async function openSet(setId) {
   document.getElementById('backBtn').style.display = 'block';
   document.getElementById('sortBtn').style.display = 'block';
   document.getElementById('exportBtn').style.display = 'block';
-  document.getElementById('printBtn').style.display = 'none';
   document.getElementById('fab').style.display = 'none';
 
   setFilter('missing');
@@ -871,7 +870,6 @@ function goHome() {
   document.getElementById('backBtn').style.display = 'none';
   document.getElementById('sortBtn').style.display = 'none';
   document.getElementById('exportBtn').style.display = 'none';
-  document.getElementById('printBtn').style.display = 'inline-flex';
   document.getElementById('fab').style.display = 'flex';
   renderHome();
 }
@@ -1206,6 +1204,100 @@ async function printMissing() {
   setTimeout(() => win.print(), 500);
 }
 
+async function printMissingSet() {
+  const db = await getDB();
+  const set = db.sets.find(s => s.id === currentSetId);
+  if (!set) return;
+
+  const missing = set.cards.filter(c => !c.owned || !Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0));
+  const total = set.cards.length;
+  const owned = total - missing.length;
+  const pct = Math.round((owned / total) * 100);
+
+  let html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
+<title>Mancanti - ${set.name}</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 11pt; padding: 1.5cm; }
+  h1 { font-size: 16pt; margin-bottom: 0.2cm; }
+  .stats { font-size: 9pt; color: #666; margin-bottom: 0.8cm; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 9pt; color: #666; border-bottom: 1px solid #ddd; padding: 2px 6px; }
+  td { padding: 4px 6px; font-size: 10pt; border-bottom: 1px solid #f0f0f0; }
+  td:first-child { color: #888; font-size: 9pt; width: 60px; }
+  .complete { color: green; font-style: italic; }
+</style></head><body>
+<h1>📋 Carte Mancanti — ${set.name}</h1>
+<div class="stats">${owned}/${total} carte (${pct}%) — <strong>${missing.length} mancanti</strong> — ${new Date().toLocaleDateString('it-IT')}</div>`;
+
+  if (missing.length === 0) {
+    html += `<div class="complete">✓ Set completo!</div>`;
+  } else {
+    html += `<table><tr><th>#</th><th>Nome carta</th></tr>`;
+    for (const c of missing) {
+      const cid = c.setCode || String(c.num).padStart(3,'0');
+      html += `<tr><td>${cid}</td><td>${c.name}</td></tr>`;
+    }
+    html += `</table>`;
+  }
+  html += `</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 400);
+}
+
+async function printNonFoilSet() {
+  const db = await getDB();
+  const set = db.sets.find(s => s.id === currentSetId);
+  if (!set) return;
+
+  const results = [];
+  for (const c of set.cards) {
+    if (!c.owned) continue;
+    const langs = Object.entries(c.owned);
+    const hasNorm = langs.some(([l, v]) => v.qty > 0);
+    const hasFoil = langs.some(([l, v]) => v.foilQty > 0);
+    if (hasNorm && !hasFoil) {
+      const normLangs = langs.filter(([l,v]) => v.qty > 0).map(([l,v]) => `${l}×${v.qty}`).join(', ');
+      results.push({ card: c, normLangs });
+    }
+  }
+
+  let html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
+<title>Senza Foil - ${set.name}</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 11pt; padding: 1.5cm; }
+  h1 { font-size: 16pt; margin-bottom: 0.2cm; }
+  .stats { font-size: 9pt; color: #666; margin-bottom: 0.8cm; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 9pt; color: #666; border-bottom: 1px solid #ddd; padding: 2px 6px; }
+  td { padding: 4px 6px; font-size: 10pt; border-bottom: 1px solid #f0f0f0; }
+  td:first-child { color: #888; font-size: 9pt; width: 60px; }
+  td.langs { font-size: 9pt; color: #555; width: 80px; }
+  .none { color: #aaa; font-style: italic; }
+</style></head><body>
+<h1>✨ Possedute Senza Foil — ${set.name}</h1>
+<div class="stats">${results.length} carte — ${new Date().toLocaleDateString('it-IT')}</div>`;
+
+  if (results.length === 0) {
+    html += `<div class="none">Nessuna carta posseduta senza foil.</div>`;
+  } else {
+    html += `<table><tr><th>#</th><th>Nome carta</th><th>Copie</th></tr>`;
+    for (const { card: c, normLangs } of results) {
+      const cid = c.setCode || String(c.num).padStart(3,'0');
+      html += `<tr><td>${cid}</td><td>${c.name}</td><td class="langs">${normLangs}</td></tr>`;
+    }
+    html += `</table>`;
+  }
+  html += `</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 400);
+}
+
 function togglePrintMenu() {
   const dd = document.getElementById('printDropdown');
   dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
@@ -1295,6 +1387,8 @@ async function printNonFoil() {
 //  (necessario con type="module")
 // ══════════════════════════════════════════════
 window.printMissing = printMissing;
+window.printMissingSet = printMissingSet;
+window.printNonFoilSet = printNonFoilSet;
 window.printNonFoil = printNonFoil;
 window.togglePrintMenu = togglePrintMenu;
 window.openImportModal = openImportModal;
