@@ -1145,4 +1145,189 @@ function showToast(msg) {
 async function printMissing() {
   document.getElementById('printDropdown').style.display = 'none';
   const db = await getDB();
-  if (!db.sets 
+  if (!db.sets || db.sets.length === 0) {
+    showToast('Nessun set caricato');
+    return;
+  }
+
+  let html = `<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Carte Mancanti</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; padding: 1.5cm; }
+  h1 { font-size: 16pt; margin-bottom: 0.2cm; }
+  .subtitle { font-size: 9pt; color: #666; margin-bottom: 0.8cm; }
+  h2 { font-size: 13pt; margin-top: 1cm; margin-bottom: 0.2cm; border-bottom: 1px solid #ccc; padding-bottom: 0.1cm; }
+  .set-stats { font-size: 9pt; color: #666; margin-bottom: 0.3cm; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 0.5cm; }
+  th { text-align: left; font-size: 9pt; color: #666; border-bottom: 1px solid #ddd; padding: 2px 6px; }
+  td { padding: 3px 6px; font-size: 10pt; border-bottom: 1px solid #f0f0f0; }
+  td:first-child { color: #888; font-size: 9pt; width: 50px; }
+  .no-missing { color: #4ade80; font-size: 10pt; font-style: italic; }
+  @media print {
+    h2 { page-break-before: auto; }
+    table { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<h1>🃏 Carte Mancanti</h1>
+<div class="subtitle">Generato il ${new Date().toLocaleDateString('it-IT', {day:'2-digit',month:'2-digit',year:'numeric'})}</div>`;
+
+  for (const set of db.sets) {
+    const missing = set.cards.filter(c => !c.owned || !Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0));
+    const total = set.cards.length;
+    const owned = total - missing.length;
+    const pct = Math.round((owned / total) * 100);
+
+    html += `<h2>${set.name}</h2>
+<div class="set-stats">${owned}/${total} carte (${pct}%) — <strong>${missing.length} mancanti</strong></div>`;
+
+    if (missing.length === 0) {
+      html += `<div class="no-missing">✓ Set completo!</div>`;
+    } else {
+      html += `<table><tr><th>#</th><th>Nome carta</th></tr>`;
+      for (const c of missing) {
+        const cid = c.setCode || String(c.num).padStart(3,'0');
+        html += `<tr><td>${cid}</td><td>${c.name}</td></tr>`;
+      }
+      html += `</table>`;
+    }
+  }
+
+  html += `</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+}
+
+function togglePrintMenu() {
+  const dd = document.getElementById('printDropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+// Chiudi dropdown cliccando fuori
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#printMenu')) {
+    const dd = document.getElementById('printDropdown');
+    if (dd) dd.style.display = 'none';
+  }
+});
+
+async function printNonFoil() {
+  document.getElementById('printDropdown').style.display = 'none';
+  const db = await getDB();
+  if (!db.sets || db.sets.length === 0) {
+    showToast('Nessun set caricato');
+    return;
+  }
+
+  let html = `<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Carte Possedute Senza Foil</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; padding: 1.5cm; }
+  h1 { font-size: 16pt; margin-bottom: 0.2cm; }
+  .subtitle { font-size: 9pt; color: #666; margin-bottom: 0.8cm; }
+  h2 { font-size: 13pt; margin-top: 1cm; margin-bottom: 0.2cm; border-bottom: 1px solid #ccc; padding-bottom: 0.1cm; }
+  .set-stats { font-size: 9pt; color: #666; margin-bottom: 0.3cm; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 0.5cm; }
+  th { text-align: left; font-size: 9pt; color: #666; border-bottom: 1px solid #ddd; padding: 2px 6px; }
+  td { padding: 3px 6px; font-size: 10pt; border-bottom: 1px solid #f0f0f0; }
+  td:first-child { color: #888; font-size: 9pt; width: 50px; }
+  td.langs { font-size: 9pt; color: #555; width: 80px; }
+  .none { color: #aaa; font-size: 10pt; font-style: italic; }
+  @media print { table { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+<h1>✨ Carte Possedute Senza Foil</h1>
+<div class="subtitle">Generato il ${new Date().toLocaleDateString('it-IT', {day:'2-digit',month:'2-digit',year:'numeric'})}</div>`;
+
+  for (const set of db.sets) {
+    // Carte possedute (almeno 1 copia normale) ma senza alcuna versione foil
+    const nonFoilCards = [];
+    for (const c of set.cards) {
+      if (!c.owned) continue;
+      const langs = Object.entries(c.owned);
+      // Ha almeno una copia normale?
+      const hasNorm = langs.some(([l, v]) => v.qty > 0);
+      // Ha qualche foil?
+      const hasFoil = langs.some(([l, v]) => v.foilQty > 0);
+      if (hasNorm && !hasFoil) {
+        // Quali lingue ha in normale?
+        const normLangs = langs.filter(([l,v]) => v.qty > 0).map(([l,v]) => `${l}×${v.qty}`).join(', ');
+        nonFoilCards.push({ card: c, normLangs });
+      }
+    }
+
+    if (nonFoilCards.length === 0) continue;
+
+    html += `<h2>${set.name}</h2>
+<div class="set-stats">${nonFoilCards.length} carte possedute senza versione foil</div>
+<table><tr><th>#</th><th>Nome carta</th><th>Copie</th></tr>`;
+
+    for (const { card: c, normLangs } of nonFoilCards) {
+      const cid = c.setCode || String(c.num).padStart(3,'0');
+      html += `<tr><td>${cid}</td><td>${c.name}</td><td class="langs">${normLangs}</td></tr>`;
+    }
+    html += `</table>`;
+  }
+
+  html += `</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+}
+
+// ══════════════════════════════════════════════
+//  ESPONI FUNZIONI AL SCOPE GLOBALE
+//  (necessario con type="module")
+// ══════════════════════════════════════════════
+window.printMissing = printMissing;
+window.printNonFoil = printNonFoil;
+window.togglePrintMenu = togglePrintMenu;
+window.openImportModal = openImportModal;
+window.closeImportModal = closeImportModal;
+window.handleFileSelect = handleFileSelect;
+window.importSet = importSet;
+window.goHome = goHome;
+window.openSet = openSet;
+window.toggleSort = toggleSort;
+window.exportCurrentSet = exportCurrentSet;
+window.setFilter = setFilter;
+window.applyFilters = applyFilters;
+window.toggleExpand = toggleExpand;
+window.toggleOwned = toggleOwned;
+window.changeQty = changeQty;
+window.confirmDelete = confirmDelete;
+window.closeConfirm = closeConfirm;
+window.showToast = showToast;
+
+// Close modals on overlay click
+document.getElementById('importModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('importModal')) closeImportModal();
+});
+document.getElementById('confirmOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('confirmOverlay')) closeConfirm();
+});
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+// Mostra spinner mentre carica da Firebase
+document.getElementById('setsList').innerHTML = '<div class="loading"><div class="spinner"></div><br>Caricamento...</div>';
+renderHome();
+</script>
+</body>
+</html>
