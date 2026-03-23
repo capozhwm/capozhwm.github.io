@@ -796,11 +796,21 @@ async function renderHome() {
         <span>${total - ownedCount} mancanti</span>
         ${foilCount > 0 ? `<span>✨ ${foilCount} foil</span>` : ''}
       </div>
-      <button class="set-card-delete" onclick="confirmDelete(event, '${set.id}', '${esc(set.name)}')">🗑</button>
+      <button class="set-card-delete" data-setid="${set.id}" data-setname="${esc(set.name)}">🗑</button>
     `;
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.set-card-delete')) return;
-      if (document.getElementById('confirmOverlay').classList.contains('open')) return;
+      const deleteBtn = e.target.closest('.set-card-delete');
+      if (deleteBtn) {
+        e.stopPropagation();
+        e.preventDefault();
+        const sid = deleteBtn.dataset.setid;
+        const sname = deleteBtn.dataset.setname;
+        document.getElementById('confirmTitle').textContent = 'Elimina set';
+        document.getElementById('confirmText').textContent = `Eliminare "${sname}"? Tutti i dati di possesso andranno persi.`;
+        document.getElementById('confirmOkBtn').onclick = async () => { await deleteSet(sid); closeConfirm(); };
+        document.getElementById('confirmOverlay').classList.add('open');
+        return;
+      }
       openSet(set.id);
     });
     list.appendChild(card);
