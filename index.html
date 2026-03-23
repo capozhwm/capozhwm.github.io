@@ -861,6 +861,7 @@ async function importSet() {
 // ══════════════════════════════════════════════
 function confirmDelete(e, setId, setName) {
   e.stopPropagation();
+  e.preventDefault();
   document.getElementById('confirmTitle').textContent = 'Elimina set';
   document.getElementById('confirmText').textContent = `Eliminare "${setName}"? Tutti i dati di possesso andranno persi.`;
   confirmCallback = () => deleteSet(setId);
@@ -871,8 +872,9 @@ function confirmDelete(e, setId, setName) {
 async function deleteSet(setId) {
   const db = await getDB();
   db.sets = db.sets.filter(s => s.id !== setId);
+  _cache = db;
   await saveDB(db);
-  renderHome();
+  await renderHome();
   showToast('Set eliminato');
 }
 
@@ -1465,6 +1467,4 @@ document.getElementById('confirmOverlay').addEventListener('click', (e) => {
 // ══════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════
-// Init gestito da onAuthStateChanged
-</script>
-</bo
+// Init g
