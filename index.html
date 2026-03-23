@@ -153,11 +153,12 @@ body {
 
 .set-card-delete {
   position: absolute; right: 0.75rem; bottom: 0.75rem;
-  background: none; border: none; color: var(--muted2);
-  font-size: 0.9rem; cursor: pointer; padding: 0.3rem;
-  border-radius: 6px; transition: color 0.15s, background 0.15s;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); font-size: 1.1rem; cursor: pointer;
+  padding: 0.4rem 0.6rem; border-radius: 8px;
+  transition: color 0.15s, background 0.15s;
 }
-.set-card-delete:hover { color: var(--red); background: var(--red-dim); }
+.set-card-delete:hover { color: var(--red); background: var(--red-dim); border-color: var(--red); }
 
 .empty-state {
   text-align: center; padding: 4rem 2rem;
@@ -465,7 +466,7 @@ body {
 
 /* ── CONFIRM DIALOG ── */
 .confirm-overlay {
-  position: fixed; inset: 0; z-index: 250;
+  position: fixed; inset: 0; z-index: 9999;
   background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center;
   padding: 1.5rem;
