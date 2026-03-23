@@ -798,7 +798,9 @@ async function renderHome() {
       <button class="set-card-delete" onclick="confirmDelete(event, '${set.id}', '${esc(set.name)}')">🗑</button>
     `;
     card.addEventListener('click', (e) => {
-      if (!e.target.closest('.set-card-delete')) openSet(set.id);
+      if (e.target.closest('.set-card-delete')) return;
+      if (document.getElementById('confirmOverlay').classList.contains('open')) return;
+      openSet(set.id);
     });
     list.appendChild(card);
   });
