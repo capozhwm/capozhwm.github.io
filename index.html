@@ -671,6 +671,7 @@ async function signInWithGoogle() {
     document.getElementById('googleLoginBtn').style.opacity = '1';
   }
 }
+window.signInWithGoogle = signInWithGoogle;
 
 // Cache locale per velocità
 let _cache = null;
@@ -1433,7 +1434,6 @@ async function printNonFoil() {
 //  ESPONI FUNZIONI AL SCOPE GLOBALE
 //  (necessario con type="module")
 // ══════════════════════════════════════════════
-window.signInWithGoogle = signInWithGoogle;
 window.printMissing = printMissing;
 window.printMissingSet = printMissingSet;
 window.printNonFoilSet = printNonFoilSet;
