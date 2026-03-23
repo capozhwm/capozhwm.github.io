@@ -864,7 +864,7 @@ function confirmDelete(e, setId, setName) {
   document.getElementById('confirmTitle').textContent = 'Elimina set';
   document.getElementById('confirmText').textContent = `Eliminare "${setName}"? Tutti i dati di possesso andranno persi.`;
   confirmCallback = () => deleteSet(setId);
-  document.getElementById('confirmOkBtn').onclick = () => { confirmCallback(); closeConfirm(); };
+  document.getElementById('confirmOkBtn').onclick = async () => { await confirmCallback(); closeConfirm(); };
   document.getElementById('confirmOverlay').classList.add('open');
 }
 
@@ -1467,5 +1467,4 @@ document.getElementById('confirmOverlay').addEventListener('click', (e) => {
 // ══════════════════════════════════════════════
 // Init gestito da onAuthStateChanged
 </script>
-</body>
-</html>
+</bo
