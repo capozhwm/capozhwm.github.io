@@ -152,15 +152,14 @@ body {
 }
 
 .set-card-delete {
-  position: absolute; right: 0.75rem; bottom: 0.75rem;
-  background: var(--surface2); border: 1px solid var(--border);
-  color: var(--muted); font-size: 1rem; cursor: pointer;
-  padding: 0.5rem 1rem; border-radius: 8px;
-  transition: color 0.15s, background 0.15s;
-  pointer-events: all;
+  background: var(--red-dim); border: 1px solid var(--red);
+  color: var(--red); font-size: 0.7rem; cursor: pointer;
+  padding: 0.25rem 0.5rem; border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+  pointer-events: all; white-space: nowrap; flex-shrink: 0;
 }
 .set-card-delete * { pointer-events: none; }
-.set-card-delete:hover { color: var(--red); background: var(--red-dim); border-color: var(--red); }
+.set-card-delete:hover { background: var(--red); color: white; }
 
 .empty-state {
   text-align: center; padding: 4rem 2rem;
@@ -792,10 +791,13 @@ async function renderHome() {
     card.innerHTML = `
       <div class="set-card-header">
         <div class="set-card-name"><span class="drag-handle">⠿</span>${esc(set.name)}</div>
-        ${pct === 100
-          ? '<div style="background:#4ade80;color:#052e16;font-family:Space Mono,monospace;font-size:0.65rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:6px;white-space:nowrap;">✓ COMPLETA</div>'
-          : `<div class="set-card-count">${pct}% · ${ownedCount}/${total}</div>`
-        }
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+          ${pct === 100
+            ? '<div style="background:#4ade80;color:#052e16;font-family:Space Mono,monospace;font-size:0.65rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:6px;white-space:nowrap;">✓ COMPLETA</div>'
+            : `<div class="set-card-count">${pct}% · ${ownedCount}/${total}</div>`
+          }
+          <button class="set-card-delete" data-setid="${set.id}" data-setname="${esc(set.name)}">🗑</button>
+        </div>
       </div>
       <div class="set-card-progress">
         <div class="set-card-bar" style="width:${pct}%"></div>
@@ -805,7 +807,6 @@ async function renderHome() {
         <span>${total - ownedCount} mancanti</span>
         ${foilCount > 0 ? `<span>✨ ${foilCount} foil</span>` : ''}
       </div>
-      <button class="set-card-delete" data-setid="${set.id}" data-setname="${esc(set.name)}">🗑 Elimina</button>
     `;
     card.addEventListener('click', (e) => {
       const deleteBtn = e.target.closest('.set-card-delete');
