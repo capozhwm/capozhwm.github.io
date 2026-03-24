@@ -1156,10 +1156,11 @@ function buildCardRow(card, setId) {
     `;
   }).join('');
 
+  const hasFoil = card.owned && Object.values(card.owned).some(v => v.foilQty > 0);
   row.innerHTML = `
     <div class="card-row-header" onclick="toggleExpand('${setId}', '${cid}')">
       <div class="card-num">#${cid}</div>
-      <div class="card-name">${esc(card.name)}</div>
+      <div class="card-name">${esc(card.name)}${hasFoil ? ' <span style="color:var(--gold);font-size:0.85rem;" title="Hai una versione foil">★</span>' : ''}</div>
       ${totalQty > 0 ? `<div class="card-owned-indicator">×${totalQty}</div>` : ''}
       <div class="card-expand-icon">▾</div>
     </div>
