@@ -508,6 +508,10 @@ body {
   text-align: center; padding: 3rem 1rem;
   color: var(--muted); font-size: 0.85rem;
 }
+.set-card { cursor: grab; user-select: none; }
+.set-card.dragging { opacity: 0.4; cursor: grabbing; }
+.set-card.drag-over { border-color: var(--accent); background: var(--accent-dim); }
+.drag-handle { color: var(--muted2); font-size: 1rem; padding: 0 0.25rem 0 0; cursor: grab; }
 </style>
 </head>
 <body>
@@ -787,7 +791,7 @@ async function renderHome() {
     card.className = 'set-card';
     card.innerHTML = `
       <div class="set-card-header">
-        <div class="set-card-name">${esc(set.name)}</div>
+        <div class="set-card-name"><span class="drag-handle">⠿</span>${esc(set.name)}</div>
         ${pct === 100
           ? '<div style="background:#4ade80;color:#052e16;font-family:Space Mono,monospace;font-size:0.65rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:6px;white-space:nowrap;">✓ COMPLETA</div>'
           : `<div class="set-card-count">${pct}% · ${ownedCount}/${total}</div>`
@@ -818,6 +822,41 @@ async function renderHome() {
       }
       openSet(set.id);
     });
+    // Drag and drop
+    card.draggable = true;
+    card.dataset.id = set.id;
+
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', set.id);
+      setTimeout(() => card.classList.add('dragging'), 0);
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      document.querySelectorAll('.set-card').forEach(c => c.classList.remove('drag-over'));
+    });
+    card.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      document.querySelectorAll('.set-card').forEach(c => c.classList.remove('drag-over'));
+      card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      const draggedId = e.dataTransfer.getData('text/plain');
+      if (draggedId === set.id) return;
+      const db = await getDB();
+      const fromIdx = db.sets.findIndex(s => s.id === draggedId);
+      const toIdx = db.sets.findIndex(s => s.id === set.id);
+      if (fromIdx === -1 || toIdx === -1) return;
+      const [moved] = db.sets.splice(fromIdx, 1);
+      db.sets.splice(toIdx, 0, moved);
+      await saveDB(db);
+      await renderHome();
+    });
+
     list.appendChild(card);
   });
 }
