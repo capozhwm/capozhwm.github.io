@@ -788,7 +788,10 @@ async function renderHome() {
     card.innerHTML = `
       <div class="set-card-header">
         <div class="set-card-name">${esc(set.name)}</div>
-        <div class="set-card-count">${ownedCount}/${total}</div>
+        ${pct === 100
+          ? '<div style="background:#4ade80;color:#052e16;font-family:Space Mono,monospace;font-size:0.65rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:6px;white-space:nowrap;">✓ COMPLETA</div>'
+          : `<div class="set-card-count">${pct}% · ${ownedCount}/${total}</div>`
+        }
       </div>
       <div class="set-card-progress">
         <div class="set-card-bar" style="width:${pct}%"></div>
