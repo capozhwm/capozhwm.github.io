@@ -127,9 +127,9 @@ body {
 .set-card:active { transform: scale(0.98); }
 .set-card:hover { border-color: var(--accent); }
 
-.set-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
-.set-card-name { font-weight: 700; font-size: 0.95rem; line-height: 1.3; flex: 1; }
-.set-card-count { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--text); white-space: nowrap; }
+.set-card-header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; min-width: 0; }
+.set-card-name { font-weight: 700; font-size: 0.9rem; line-height: 1.3; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-card-count { font-family: 'Space Mono', monospace; font-size: 0.65rem; color: var(--text); white-space: nowrap; flex-shrink: 0; }
 
 .set-card-progress {
   margin-top: 0.75rem;
