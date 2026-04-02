@@ -572,9 +572,11 @@ body {
   <button class="topbar-back" id="backBtn" onclick="goHome()">‹</button>
   <div class="topbar-title" id="topbarTitle">CAPOZ MTG VAULT</div>
   <div class="topbar-actions">
-
+    <button class="icon-btn" id="usersBtn" title="Gestione utenti" onclick="openUsersModal()" style="display:none">👥</button>
+    <button class="icon-btn" id="printBtn" title="Stampa liste" onclick="togglePrintMenu()" style="display:inline-flex">🖨</button>
     <button class="icon-btn" id="sortBtn" title="Ordina" onclick="toggleSort()" style="display:none">⇅</button>
     <button class="icon-btn" id="exportBtn" title="Esporta CSV" onclick="exportCurrentSet()" style="display:none">↑</button>
+    <button class="icon-btn" id="logoutBtn" title="Esci" onclick="doSignOut()" style="display:inline-flex">⏏</button>
   </div>
 </div>
 
@@ -757,6 +759,9 @@ onAuthStateChanged(auth, async (user) => {
 
   currentUser = user;
   isAdmin = user.email === ADMIN_EMAIL;
+  // Reset cache ad ogni login per forzare rilettura da Firebase
+  _setsCache = null;
+  _ownedCache = null;
   document.getElementById('loginScreen').style.display = 'none';
   renderHome();
 });
@@ -872,8 +877,10 @@ let confirmCallback = null;
 // ══════════════════════════════════════════════
 async function renderHome() {
   // Mostra/nascondi elementi admin
-  document.getElementById('usersBtn').style.display = isAdmin ? 'inline-flex' : 'none';
-  document.getElementById('fab').style.display = isAdmin ? 'flex' : 'none';
+  const usersBtn = document.getElementById('usersBtn');
+  const fabBtn = document.getElementById('fab');
+  if (usersBtn) usersBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+  if (fabBtn) fabBtn.style.display = isAdmin ? 'flex' : 'none';
 
   const db = await getDB();
   const sets = db.sets;
