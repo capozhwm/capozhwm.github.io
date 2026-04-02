@@ -662,6 +662,20 @@ body {
   </div>
 </div>
 
+<!-- USERS MODAL -->
+<div class="modal-overlay" id="usersModal">
+  <div class="modal">
+    <div class="modal-title">👥 Gestione Utenti</div>
+    <div id="usersList" style="margin-bottom:1rem;max-height:200px;overflow-y:auto;"></div>
+    <label class="modal-label">Aggiungi email Google</label>
+    <input type="email" class="modal-input" id="newUserEmail" placeholder="email@gmail.com" style="margin-bottom:1rem;">
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeUsersModal()">Chiudi</button>
+      <button class="btn-primary" onclick="addUser()">Aggiungi</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -670,7 +684,7 @@ body {
 //  FIREBASE SETUP
 // ══════════════════════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -682,16 +696,25 @@ const firebaseConfig = {
   appId: "1:644903838424:web:5de4505a1292b16fa06dad"
 };
 
-// Email autorizzata — solo tu puoi accedere
-const AUTHORIZED_EMAIL = "hwmcpz@gmail.com";
+const ADMIN_EMAIL = "hwmcpz@gmail.com";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db_fire = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
 const provider = new GoogleAuthProvider();
-const DOC_REF = doc(db_fire, 'collections', 'main');
 
-// Definisci e esponi signInWithGoogle subito, prima di tutto il resto
+// Riferimenti documenti
+const SETS_REF = doc(db_fire, 'sets', 'main');        // liste carte (admin only)
+const AUTH_USERS_REF = doc(db_fire, 'authorized_users', 'list'); // utenti autorizzati
+
+let currentUser = null;
+let isAdmin = false;
+
+// Cache
+let _setsCache = null;
+let _ownedCache = null;
+
+// ── AUTH ──
 async function signInWithGoogle() {
   try {
     document.getElementById('googleLoginBtn').style.opacity = '0.6';
@@ -703,53 +726,137 @@ async function signInWithGoogle() {
 }
 window._signInWithGoogle = signInWithGoogle;
 window.signInWithGoogle = signInWithGoogle;
+window.openUsersModal = openUsersModal;
+window.closeUsersModal = closeUsersModal;
+window.addUser = addUser;
+window.removeUser = removeUser;
+window.doSignOut = doSignOut;
 
-// Gestione autenticazione
-onAuthStateChanged(auth, (user) => {
-  if (user && user.email === AUTHORIZED_EMAIL) {
-    document.getElementById('loginScreen').style.display = 'none';
-    renderHome();
-  } else if (user) {
-    // Account non autorizzato
-    signOut(auth);
+async function doSignOut() {
+  await signOut(auth);
+}
+window.doSignOut = doSignOut;
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('loginError').style.display = 'none';
+    return;
+  }
+  // Controlla se utente è autorizzato
+  const authSnap = await getDoc(AUTH_USERS_REF);
+  const authData = authSnap.exists() ? authSnap.data() : { emails: [ADMIN_EMAIL] };
+  const allowedEmails = authData.emails || [ADMIN_EMAIL];
+
+  if (!allowedEmails.includes(user.email) && user.email !== ADMIN_EMAIL) {
+    await signOut(auth);
     document.getElementById('loginError').style.display = 'block';
     document.getElementById('loginScreen').style.display = 'flex';
-  } else {
-    document.getElementById('loginScreen').style.display = 'flex';
+    return;
   }
+
+  currentUser = user;
+  isAdmin = user.email === ADMIN_EMAIL;
+  document.getElementById('loginScreen').style.display = 'none';
+  renderHome();
 });
 
-
-
-// Cache locale per velocità
-let _cache = null;
-
-async function loadDB() {
-  if (_cache) return _cache;
+// ── SETS (liste carte) — solo admin scrive ──
+async function loadSets() {
+  if (_setsCache) return _setsCache;
   try {
-    const snap = await getDoc(DOC_REF);
-    _cache = snap.exists() ? snap.data() : { sets: [] };
-    localStorage.setItem('tcg_backup', JSON.stringify(_cache));
+    const snap = await getDoc(SETS_REF);
+    _setsCache = snap.exists() ? snap.data() : { sets: [] };
   } catch(e) {
-    console.warn('Firebase non raggiungibile, uso backup locale', e);
-    try { _cache = JSON.parse(localStorage.getItem('tcg_backup')) || { sets: [] }; }
-    catch { _cache = { sets: [] }; }
+    console.warn('Errore caricamento sets', e);
+    _setsCache = { sets: [] };
   }
-  return _cache;
+  return _setsCache;
 }
 
-async function saveDB(data) {
-  _cache = data;
-  localStorage.setItem('tcg_backup', JSON.stringify(data));
+async function saveSets(data) {
+  _setsCache = data;
+  await setDoc(SETS_REF, data);
+}
+
+// ── OWNED (possesso) — per utente ──
+function ownedRef() {
+  return doc(db_fire, 'owned', currentUser.uid);
+}
+
+async function loadOwned() {
+  if (_ownedCache) return _ownedCache;
   try {
-    await setDoc(DOC_REF, data);
+    const snap = await getDoc(ownedRef());
+    _ownedCache = snap.exists() ? snap.data() : { owned: {} };
   } catch(e) {
-    console.warn('Salvataggio Firebase fallito', e);
-    showToast('\u26a0 Salvataggio online fallito — dati salvati localmente');
+    _ownedCache = { owned: {} };
+  }
+  return _ownedCache;
+}
+
+async function saveOwned(data) {
+  _ownedCache = data;
+  localStorage.setItem('tcg_owned_' + currentUser.uid, JSON.stringify(data));
+  try {
+    await setDoc(ownedRef(), data);
+  } catch(e) {
+    showToast('⚠ Salvataggio online fallito');
   }
 }
 
-async function getDB() { return await loadDB(); }
+// ── FUNZIONI COMPATIBILITÀ (usate dal resto del codice) ──
+// getDB restituisce i sets con i dati di possesso dell'utente corrente iniettati
+async function getDB() {
+  const setsData = await loadSets();
+  const ownedData = await loadOwned();
+  const owned = ownedData.owned || {};
+
+  // Inietta i dati di possesso nelle carte
+  const sets = setsData.sets.map(set => ({
+    ...set,
+    cards: set.cards.map(card => ({
+      ...card,
+      owned: owned[set.id + '_' + (card.setCode || card.num)] || {}
+    }))
+  }));
+
+  return { sets };
+}
+
+async function saveDB(db) {
+  // Separa sets (struttura) da owned (possesso utente)
+  const setsOnly = {
+    sets: db.sets.map(set => ({
+      ...set,
+      cards: set.cards.map(card => {
+        const { owned, ...cardWithoutOwned } = card;
+        return cardWithoutOwned;
+      })
+    }))
+  };
+
+  // Costruisci mappa owned
+  const ownedMap = {};
+  for (const set of db.sets) {
+    for (const card of set.cards) {
+      if (card.owned && Object.keys(card.owned).length > 0) {
+        const hasData = Object.values(card.owned).some(v => v.qty > 0 || v.foilQty > 0);
+        if (hasData) {
+          ownedMap[set.id + '_' + (card.setCode || card.num)] = card.owned;
+        }
+      }
+    }
+  }
+
+  // Admin salva anche la struttura sets
+  if (isAdmin) {
+    await saveSets(setsOnly);
+    _setsCache = setsOnly;
+  }
+
+  await saveOwned({ owned: ownedMap });
+}
 
 // ══════════════════════════════════════════════
 //  STATE
@@ -764,6 +871,10 @@ let confirmCallback = null;
 //  HOME
 // ══════════════════════════════════════════════
 async function renderHome() {
+  // Mostra/nascondi elementi admin
+  document.getElementById('usersBtn').style.display = isAdmin ? 'inline-flex' : 'none';
+  document.getElementById('fab').style.display = isAdmin ? 'flex' : 'none';
+
   const db = await getDB();
   const sets = db.sets;
   const list = document.getElementById('setsList');
@@ -1287,6 +1398,57 @@ function showToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+
+// ══════════════════════════════════════════════
+//  GESTIONE UTENTI (admin only)
+// ══════════════════════════════════════════════
+async function openUsersModal() {
+  if (!isAdmin) return;
+  const snap = await getDoc(AUTH_USERS_REF);
+  const data = snap.exists() ? snap.data() : { emails: [] };
+  const emails = data.emails || [];
+
+  const list = document.getElementById('usersList');
+  list.innerHTML = emails.length === 0
+    ? '<div style="color:var(--muted);font-size:0.85rem;">Nessun utente aggiunto</div>'
+    : emails.map(e => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid var(--border);">
+          <span style="font-size:0.85rem;">${e}</span>
+          <button onclick="removeUser('${e}')" style="background:var(--red-dim);border:1px solid var(--red);color:var(--red);border-radius:6px;padding:0.2rem 0.5rem;font-size:0.75rem;cursor:pointer;">Rimuovi</button>
+        </div>`).join('');
+
+  document.getElementById('newUserEmail').value = '';
+  document.getElementById('usersModal').classList.add('open');
+}
+
+function closeUsersModal() {
+  document.getElementById('usersModal').classList.remove('open');
+}
+
+async function addUser() {
+  const email = document.getElementById('newUserEmail').value.trim().toLowerCase();
+  if (!email || !email.includes('@')) { showToast('Email non valida'); return; }
+
+  const snap = await getDoc(AUTH_USERS_REF);
+  const data = snap.exists() ? snap.data() : { emails: [] };
+  const emails = data.emails || [];
+
+  if (emails.includes(email)) { showToast('Utente già presente'); return; }
+
+  emails.push(email);
+  await setDoc(AUTH_USERS_REF, { emails });
+  showToast('✓ Utente aggiunto');
+  openUsersModal();
+}
+
+async function removeUser(email) {
+  const snap = await getDoc(AUTH_USERS_REF);
+  const data = snap.exists() ? snap.data() : { emails: [] };
+  const emails = (data.emails || []).filter(e => e !== email);
+  await setDoc(AUTH_USERS_REF, { emails });
+  showToast('Utente rimosso');
+  openUsersModal();
+}
 
 // ══════════════════════════════════════════════
 //  STAMPA MANCANTI
