@@ -573,7 +573,13 @@ body {
   <div class="topbar-title" id="topbarTitle">CAPOZ MTG VAULT</div>
   <div class="topbar-actions">
     <button class="icon-btn" id="usersBtn" title="Gestione utenti" onclick="openUsersModal()" style="display:none">👥</button>
-    <button class="icon-btn" id="printBtn" title="Stampa liste" onclick="togglePrintMenu()" style="display:inline-flex">🖨</button>
+    <div id="printMenu" style="position:relative;display:inline-flex">
+      <button class="icon-btn" id="printBtn" title="Stampa liste" onclick="togglePrintMenu()" style="display:inline-flex">🖨</button>
+      <div id="printDropdown" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);border:1px solid var(--border);border-radius:10px;min-width:220px;z-index:200;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.4)">
+        <button onclick="printMissing()" style="display:block;width:100%;padding:0.8rem 1rem;background:none;border:none;color:var(--text);font-family:Syne,sans-serif;font-size:0.9rem;text-align:left;cursor:pointer;border-bottom:1px solid var(--border)">📋 Carte mancanti (tutti i set)</button>
+        <button onclick="printNonFoil()" style="display:block;width:100%;padding:0.8rem 1rem;background:none;border:none;color:var(--text);font-family:Syne,sans-serif;font-size:0.9rem;text-align:left;cursor:pointer">✨ Possedute senza foil (tutti i set)</button>
+      </div>
+    </div>
     <button class="icon-btn" id="sortBtn" title="Ordina" onclick="toggleSort()" style="display:none">⇅</button>
     <button class="icon-btn" id="exportBtn" title="Esporta CSV" onclick="exportCurrentSet()" style="display:none">↑</button>
     <button class="icon-btn" id="logoutBtn" title="Esci" onclick="doSignOut()" style="display:inline-flex">⏏</button>
