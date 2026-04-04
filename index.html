@@ -941,19 +941,7 @@ async function renderHome() {
       rightDiv.appendChild(countDiv);
     }
 
-    // Bottone elimina creato come elemento DOM con listener diretto
-    const delBtn = document.createElement('button');
-    delBtn.className = 'set-card-delete';
-    delBtn.textContent = '🗑';
-    delBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      document.getElementById('confirmTitle').textContent = 'Elimina set';
-      document.getElementById('confirmText').textContent = `Eliminare "${set.name}"? Tutti i dati di possesso andranno persi.`;
-      document.getElementById('confirmOkBtn').onclick = async () => { await deleteSet(set.id); closeConfirm(); };
-      document.getElementById('confirmOverlay').classList.add('open');
-    });
-    rightDiv.appendChild(delBtn);
+    // (bottone elimina aggiunto fuori dalla card come elemento assoluto)
 
     header.appendChild(nameDiv);
     header.appendChild(rightDiv);
@@ -973,8 +961,7 @@ async function renderHome() {
     `;
     card.appendChild(rest);
 
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('.set-card-delete')) return;
+    card.addEventListener('click', () => {
       if (document.getElementById('confirmOverlay').classList.contains('open')) return;
       openSet(set.id);
     });
@@ -1013,7 +1000,26 @@ async function renderHome() {
       await renderHome();
     });
 
-    list.appendChild(card);
+    // Wrapper per posizionare card e bottone insieme
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:relative;';
+    wrapper.appendChild(card);
+
+    // Bottone elimina FUORI dalla card, sopra in posizione assoluta
+    const floatDel = document.createElement('button');
+    floatDel.className = 'set-card-delete';
+    floatDel.textContent = '🗑';
+    floatDel.style.cssText = 'position:absolute;top:0.6rem;right:0.6rem;z-index:10;';
+    floatDel.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      document.getElementById('confirmTitle').textContent = 'Elimina set';
+      document.getElementById('confirmText').textContent = `Eliminare "${set.name}"? Tutti i dati di possesso andranno persi.`;
+      document.getElementById('confirmOkBtn').onclick = async () => { await deleteSet(set.id); closeConfirm(); };
+      document.getElementById('confirmOverlay').classList.add('open');
+    });
+    wrapper.appendChild(floatDel);
+    list.appendChild(wrapper);
   });
 }
 
