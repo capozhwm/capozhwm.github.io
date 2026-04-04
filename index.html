@@ -917,17 +917,51 @@ async function renderHome() {
 
     const card = document.createElement('div');
     card.className = 'set-card';
-    card.innerHTML = `
-      <div class="set-card-header">
-        <div class="set-card-name"><span class="drag-handle">⠿</span>${esc(set.name)}</div>
-        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
-          ${pct === 100
-            ? '<div style="background:#4ade80;color:#052e16;font-family:Space Mono,monospace;font-size:0.65rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:6px;white-space:nowrap;">✓ COMPLETA</div>'
-            : `<div class="set-card-count">${pct}% · ${ownedCount}/${total}</div>`
-          }
-          <span id="delbtn-${set.id}" class="set-card-delete">🗑</span>
-        </div>
-      </div>
+
+    // Costruisci header con bottone elimina come elemento DOM — non innerHTML
+    const header = document.createElement('div');
+    header.className = 'set-card-header';
+
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'set-card-name';
+    nameDiv.innerHTML = `<span class="drag-handle">⠿</span>${esc(set.name)}`;
+
+    const rightDiv = document.createElement('div');
+    rightDiv.style.cssText = 'display:flex;align-items:center;gap:0.5rem;flex-shrink:0;';
+
+    if (pct === 100) {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'background:#4ade80;color:#052e16;font-family:Space Mono,monospace;font-size:0.65rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:6px;white-space:nowrap;';
+      badge.textContent = '✓ COMPLETA';
+      rightDiv.appendChild(badge);
+    } else {
+      const countDiv = document.createElement('div');
+      countDiv.className = 'set-card-count';
+      countDiv.textContent = `${pct}% · ${ownedCount}/${total}`;
+      rightDiv.appendChild(countDiv);
+    }
+
+    // Bottone elimina creato come elemento DOM con listener diretto
+    const delBtn = document.createElement('button');
+    delBtn.className = 'set-card-delete';
+    delBtn.textContent = '🗑';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      document.getElementById('confirmTitle').textContent = 'Elimina set';
+      document.getElementById('confirmText').textContent = `Eliminare "${set.name}"? Tutti i dati di possesso andranno persi.`;
+      document.getElementById('confirmOkBtn').onclick = async () => { await deleteSet(set.id); closeConfirm(); };
+      document.getElementById('confirmOverlay').classList.add('open');
+    });
+    rightDiv.appendChild(delBtn);
+
+    header.appendChild(nameDiv);
+    header.appendChild(rightDiv);
+    card.appendChild(header);
+
+    // Resto della card via innerHTML
+    const rest = document.createElement('div');
+    rest.innerHTML = `
       <div class="set-card-progress">
         <div class="set-card-bar" style="width:${pct}%"></div>
       </div>
@@ -937,21 +971,10 @@ async function renderHome() {
         ${foilCount > 0 ? `<span>✨ ${foilCount} foil</span>` : ''}
       </div>
     `;
-    // Listener sul bottone elimina con id univoco
-    const delBtn = document.getElementById('delbtn-' + set.id);
-    if (delBtn) {
-      delBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        document.getElementById('confirmTitle').textContent = 'Elimina set';
-        document.getElementById('confirmText').textContent = `Eliminare "${set.name}"? Tutti i dati di possesso andranno persi.`;
-        document.getElementById('confirmOkBtn').onclick = async () => { await deleteSet(set.id); closeConfirm(); };
-        document.getElementById('confirmOverlay').classList.add('open');
-      });
-    }
+    card.appendChild(rest);
 
     card.addEventListener('click', (e) => {
-      if (e.target.id && e.target.id.startsWith('delbtn-')) return;
+      if (e.target.closest('.set-card-delete')) return;
       if (document.getElementById('confirmOverlay').classList.contains('open')) return;
       openSet(set.id);
     });
