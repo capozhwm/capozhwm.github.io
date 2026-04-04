@@ -938,19 +938,24 @@ async function renderHome() {
         ${foilCount > 0 ? `<span>✨ ${foilCount} foil</span>` : ''}
       </div>
     `;
-    card.addEventListener('click', (e) => {
-      const deleteBtn = e.target.closest('.set-card-delete');
-      if (deleteBtn) {
+    // Listener separato sul bottone elimina — non sulla card
+    const delBtn = card.querySelector('.set-card-delete');
+    if (delBtn) {
+      delBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        const sid = deleteBtn.dataset.setid;
-        const sname = deleteBtn.dataset.setname;
+        const sid = delBtn.dataset.setid;
+        const sname = delBtn.dataset.setname;
         document.getElementById('confirmTitle').textContent = 'Elimina set';
         document.getElementById('confirmText').textContent = `Eliminare "${sname}"? Tutti i dati di possesso andranno persi.`;
         document.getElementById('confirmOkBtn').onclick = async () => { await deleteSet(sid); closeConfirm(); };
         document.getElementById('confirmOverlay').classList.add('open');
-        return;
-      }
+      });
+    }
+
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.set-card-delete')) return;
+      if (document.getElementById('confirmOverlay').classList.contains('open')) return;
       openSet(set.id);
     });
     // Drag and drop
