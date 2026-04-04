@@ -1132,10 +1132,10 @@ function confirmDelete(e, setId, setName) {
 }
 
 async function deleteSet(setId) {
-  const db = await getDB();
-  db.sets = db.sets.filter(s => s.id !== setId);
-  _cache = db;
-  await saveDB(db);
+  const setsData = await loadSets();
+  setsData.sets = setsData.sets.filter(s => s.id !== setId);
+  _setsCache = setsData;
+  await saveSets(setsData);
   await renderHome();
   showToast('Set eliminato');
 }
