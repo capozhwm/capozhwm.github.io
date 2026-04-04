@@ -158,7 +158,6 @@ body {
   transition: background 0.15s, color 0.15s;
   pointer-events: all; white-space: nowrap; flex-shrink: 0;
 }
-.set-card-delete * { pointer-events: none; }
 .set-card-delete:hover { background: var(--red); color: white; }
 
 .empty-state {
@@ -926,7 +925,7 @@ async function renderHome() {
             ? '<div style="background:#4ade80;color:#052e16;font-family:Space Mono,monospace;font-size:0.65rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:6px;white-space:nowrap;">✓ COMPLETA</div>'
             : `<div class="set-card-count">${pct}% · ${ownedCount}/${total}</div>`
           }
-          <button class="set-card-delete" data-setid="${set.id}" data-setname="${esc(set.name)}">🗑</button>
+          <span id="delbtn-${set.id}" class="set-card-delete">🗑</span>
         </div>
       </div>
       <div class="set-card-progress">
@@ -938,23 +937,21 @@ async function renderHome() {
         ${foilCount > 0 ? `<span>✨ ${foilCount} foil</span>` : ''}
       </div>
     `;
-    // Listener separato sul bottone elimina — non sulla card
-    const delBtn = card.querySelector('.set-card-delete');
+    // Listener sul bottone elimina con id univoco
+    const delBtn = document.getElementById('delbtn-' + set.id);
     if (delBtn) {
       delBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        const sid = delBtn.dataset.setid;
-        const sname = delBtn.dataset.setname;
         document.getElementById('confirmTitle').textContent = 'Elimina set';
-        document.getElementById('confirmText').textContent = `Eliminare "${sname}"? Tutti i dati di possesso andranno persi.`;
-        document.getElementById('confirmOkBtn').onclick = async () => { await deleteSet(sid); closeConfirm(); };
+        document.getElementById('confirmText').textContent = `Eliminare "${set.name}"? Tutti i dati di possesso andranno persi.`;
+        document.getElementById('confirmOkBtn').onclick = async () => { await deleteSet(set.id); closeConfirm(); };
         document.getElementById('confirmOverlay').classList.add('open');
       });
     }
 
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.set-card-delete')) return;
+      if (e.target.id && e.target.id.startsWith('delbtn-')) return;
       if (document.getElementById('confirmOverlay').classList.contains('open')) return;
       openSet(set.id);
     });
