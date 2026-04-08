@@ -1811,6 +1811,20 @@ document.getElementById('confirmOverlay').addEventListener('click', (e) => {
 // ══════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════
+// Quando la pagina torna visibile (es. si riapre l'app) svuota la cache
+// e ricarica i dati aggiornati da Firebase
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && currentUser) {
+    _setsCache = null;
+    _ownedCache = null;
+    if (currentSetId) {
+      renderCards();
+    } else {
+      renderHome();
+    }
+  }
+});
+
 // Init gestito da onAuthStateChanged
 </script>
 </body>
