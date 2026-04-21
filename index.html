@@ -657,8 +657,26 @@ body {
       <div class="file-drop-hint" id="fileDropHint">formato: numero,nome carta</div>
     </div>
 
-    <label class="modal-label">Nome del set</label>
-    <input type="text" class="modal-input" id="setNameInput" placeholder="Es: Spider-Man SPM">
+    <!-- Modalità: nuovo o aggiorna -->
+    <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+      <button id="modeNew" onclick="setImportMode('new')" style="flex:1;padding:0.5rem;border-radius:8px;border:2px solid var(--accent);background:var(--accent-dim);color:var(--accent);font-family:Syne,sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;">➕ Nuovo set</button>
+      <button id="modeUpdate" onclick="setImportMode('update')" style="flex:1;padding:0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:Syne,sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;">🔄 Aggiorna esistente</button>
+    </div>
+
+    <!-- Nuovo set: nome -->
+    <div id="newSetFields">
+      <label class="modal-label">Nome del set</label>
+      <input type="text" class="modal-input" id="setNameInput" placeholder="Es: Spider-Man SPM" oninput="checkImportReady()">
+    </div>
+
+    <!-- Aggiorna: seleziona set esistente -->
+    <div id="updateSetFields" style="display:none;">
+      <label class="modal-label">Seleziona set da aggiornare</label>
+      <select class="modal-input" id="updateSetSelect" style="cursor:pointer;">
+        <option value="">-- Seleziona set --</option>
+      </select>
+      <div style="font-size:0.75rem;color:var(--muted);margin-top:0.4rem;">Le carte possedute verranno mantenute. Verranno aggiornati numero, nome e rarità.</div>
+    </div>
 
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeImportModal()">Annulla</button>
@@ -1038,13 +1056,49 @@ function countFoilCards(set) {
 // ══════════════════════════════════════════════
 //  IMPORT
 // ══════════════════════════════════════════════
-function openImportModal() {
+let importMode = 'new';
+
+function setImportMode(mode) {
+  importMode = mode;
+  document.getElementById('newSetFields').style.display = mode === 'new' ? 'block' : 'none';
+  document.getElementById('updateSetFields').style.display = mode === 'update' ? 'block' : 'none';
+  document.getElementById('modeNew').style.cssText = mode === 'new'
+    ? 'flex:1;padding:0.5rem;border-radius:8px;border:2px solid var(--accent);background:var(--accent-dim);color:var(--accent);font-family:Syne,sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;'
+    : 'flex:1;padding:0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:Syne,sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;';
+  document.getElementById('modeUpdate').style.cssText = mode === 'update'
+    ? 'flex:1;padding:0.5rem;border-radius:8px;border:2px solid var(--accent);background:var(--accent-dim);color:var(--accent);font-family:Syne,sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;'
+    : 'flex:1;padding:0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:Syne,sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;';
+  checkImportReady();
+}
+
+function checkImportReady() {
+  const fileOk = pendingCSV && pendingCSV.length > 0;
+  const nameOk = importMode === 'new' ? document.getElementById('setNameInput').value.trim().length > 0 : document.getElementById('updateSetSelect').value !== '';
+  document.getElementById('importBtn').disabled = !(fileOk && (importMode === 'new' || nameOk));
+}
+
+async function openImportModal() {
   pendingCSV = null;
+  importMode = 'new';
   document.getElementById('setNameInput').value = '';
   document.getElementById('importBtn').disabled = true;
   document.getElementById('fileDropText').textContent = 'Seleziona file CSV';
   document.getElementById('fileDropHint').textContent = 'formato: numero,nome carta';
   document.getElementById('fileIcon').textContent = '📂';
+  setImportMode('new');
+
+  // Popola select con set esistenti
+  const setsData = await loadSets();
+  const sel = document.getElementById('updateSetSelect');
+  sel.innerHTML = '<option value="">-- Seleziona set --</option>';
+  (setsData.sets || []).forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name;
+    sel.appendChild(opt);
+  });
+  sel.onchange = checkImportReady;
+
   document.getElementById('importModal').classList.add('open');
 }
 
@@ -1071,7 +1125,7 @@ function handleFileSelect(e) {
       const name = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ');
       document.getElementById('setNameInput').value = name;
     }
-    document.getElementById('importBtn').disabled = false;
+    checkImportReady();
   };
   reader.readAsText(file);
 }
@@ -1080,20 +1134,29 @@ function parseCSV(text) {
   const lines = text.split(/\r?\n/);
   const cards = [];
   const seen = new Set();
+  // Controlla se c'è intestazione con rarità
+  const firstLine = lines[0] ? lines[0].toLowerCase() : '';
+  const hasRarity = firstLine.includes('rarity') || firstLine.includes('rarità');
+
   for (const line of lines) {
     const clean = line.trim();
     if (!clean) continue;
-    // Supporta: "42,Nome" o "42s,Nome" o "42;Nome" o "42 Nome"
-    // Il numero può avere suffisso alfabetico tipo 1s, 2s, 105s
-    const m = clean.match(/^(\d+[a-zA-Z]*)[,;\t]\s*"?(.+?)"?\s*$/) ||
+    // Salta intestazione
+    if (clean.toLowerCase().startsWith('set_number') || clean.toLowerCase().startsWith('set number')) continue;
+
+    // Supporta: "42,Nome" o "42,Nome,R" o "42s,Nome,U"
+    const m = clean.match(/^(\d+[a-zA-Z]*)[,;\t]\s*"?(.+?)"?\s*(?:[,;\t]([CURMcurm]))?\s*$/) ||
                clean.match(/^(\d+[a-zA-Z]*)\s+(.+)$/);
     if (!m) continue;
-    const setCode = m[1];          // es. "105s" o "42"
-    const num = parseInt(setCode); // parte numerica
+    const setCode = m[1];
+    const num = parseInt(setCode);
     const name = m[2].trim().replace(/^"|"$/g, '');
+    const rarity = m[3] ? m[3].toUpperCase() : null;
     if (!name || seen.has(setCode)) continue;
     seen.add(setCode);
-    cards.push({ num, setCode, name, owned: {} });
+    const card = { num, setCode, name, owned: {} };
+    if (rarity) card.rarity = rarity;
+    cards.push(card);
   }
   return cards.sort((a, b) => {
     if (a.num !== b.num) return a.num - b.num;
@@ -1103,19 +1166,42 @@ function parseCSV(text) {
 
 async function importSet() {
   if (!pendingCSV || pendingCSV.length === 0) return;
-  const name = document.getElementById('setNameInput').value.trim() || 'Set senza nome';
-  const db = await getDB();
-  const set = {
-    id: Date.now().toString(),
-    name,
-    createdAt: new Date().toISOString(),
-    cards: pendingCSV
-  };
-  db.sets.push(set);
-  await saveDB(db);
-  closeImportModal();
-  renderHome();
-  showToast(`✓ "${name}" importato (${pendingCSV.length} carte)`);
+
+  if (importMode === 'update') {
+    // Aggiorna set esistente mantenendo i dati di possesso
+    const setId = document.getElementById('updateSetSelect').value;
+    if (!setId) return;
+    const setsData = await loadSets();
+    const setIdx = setsData.sets.findIndex(s => s.id === setId);
+    if (setIdx === -1) return;
+    const existingSet = setsData.sets[setIdx];
+    // Aggiorna solo la struttura carte, mantieni id e nome
+    setsData.sets[setIdx] = {
+      ...existingSet,
+      cards: pendingCSV
+    };
+    _setsCache = setsData;
+    await saveSets(setsData);
+    closeImportModal();
+    await renderHome();
+    showToast(`✓ "${existingSet.name}" aggiornato (${pendingCSV.length} carte)`);
+  } else {
+    // Nuovo set
+    const name = document.getElementById('setNameInput').value.trim() || 'Set senza nome';
+    const setsData = await loadSets();
+    const set = {
+      id: Date.now().toString(),
+      name,
+      createdAt: new Date().toISOString(),
+      cards: pendingCSV
+    };
+    setsData.sets.push(set);
+    _setsCache = setsData;
+    await saveSets(setsData);
+    closeImportModal();
+    await renderHome();
+    showToast(`✓ "${name}" importato (${pendingCSV.length} carte)`);
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -1321,7 +1407,13 @@ function buildCardRow(card, setId) {
   row.innerHTML = `
     <div class="card-row-header" onclick="toggleExpand('${setId}', '${cid}')">
       <div class="card-num">#${cid}</div>
-      <div class="card-name">
+      <div class="card-name" style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">
+        ${card.rarity ? `<span style="font-size:0.6rem;font-weight:700;padding:0.1rem 0.3rem;border-radius:4px;flex-shrink:0;${
+          card.rarity === 'M' ? 'background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid #fbbf24;' :
+          card.rarity === 'R' ? 'background:rgba(251,146,60,0.15);color:#fb923c;border:1px solid #fb923c;' :
+          card.rarity === 'U' ? 'background:rgba(147,197,253,0.15);color:#93c5fd;border:1px solid #93c5fd;' :
+          'background:rgba(156,163,175,0.15);color:#9ca3af;border:1px solid #9ca3af;'
+        }">${card.rarity}</span>` : ''}
         <a href="https://scryfall.com/search?q=!%22${encodeURIComponent(card.name)}%22" target="_blank" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--accent);">${esc(card.name)}</a>${hasFoil ? ' <span style="color:var(--gold);font-size:0.85rem;">★</span>' : ''}
       </div>
       ${totalQty > 0 ? `<div class="card-owned-indicator">×${totalQty}</div>` : ''}
@@ -1784,6 +1876,8 @@ window.togglePrintMenu = togglePrintMenu;
 window.selectAllPrintSets = selectAllPrintSets;
 window.getSelectedSetIds = getSelectedSetIds;
 window.openImportModal = openImportModal;
+window.setImportMode = setImportMode;
+window.checkImportReady = checkImportReady;
 window.closeImportModal = closeImportModal;
 window.handleFileSelect = handleFileSelect;
 window.importSet = importSet;
