@@ -1645,10 +1645,11 @@ async function printMissing() {
     if (missing.length === 0) {
       html += `<div class="no-missing">✓ Set completo!</div>`;
     } else {
-      html += `<table><tr><th>#</th><th>Nome carta</th></tr>`;
+      html += `<table><tr><th>#</th><th>R</th><th>Nome carta</th></tr>`;
       for (const c of missing) {
         const cid = c.setCode || String(c.num).padStart(3,'0');
-        html += `<tr><td>${cid}</td><td>${c.name}</td></tr>`;
+        const r = c.rarity || '';
+        html += `<tr><td>${cid}</td><td class="r-${r}">${r}</td><td>${c.name}</td></tr>`;
       }
       html += `</table>`;
     }
@@ -1682,7 +1683,13 @@ async function printMissingSet() {
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; font-size: 9pt; color: #666; border-bottom: 1px solid #ddd; padding: 2px 6px; }
   td { padding: 4px 6px; font-size: 10pt; border-bottom: 1px solid #f0f0f0; }
-  td:first-child { color: #888; font-size: 9pt; width: 60px; }
+  td:first-child { color: #888; font-size: 9pt; width: 45px; }
+  td:nth-child(2) { width: 20px; text-align:center; }
+  .r-M { color: #b8860b; font-weight:700; }
+  .r-R { color: #cc5500; font-weight:700; }
+  .r-U { color: #1a5276; font-weight:700; }
+  .r-C { color: #666; }
+
   .complete { color: green; font-style: italic; }
 </style></head><body>
 <h1>📋 Carte Mancanti — ${set.name}</h1>
@@ -1691,10 +1698,11 @@ async function printMissingSet() {
   if (missing.length === 0) {
     html += `<div class="complete">✓ Set completo!</div>`;
   } else {
-    html += `<table><tr><th>#</th><th>Nome carta</th></tr>`;
+    html += `<table><tr><th>#</th><th>R</th><th>Nome carta</th></tr>`;
     for (const c of missing) {
       const cid = c.setCode || String(c.num).padStart(3,'0');
-      html += `<tr><td>${cid}</td><td>${c.name}</td></tr>`;
+      const r = c.rarity || '';
+      html += `<tr><td>${cid}</td><td class="r-${r}">${r}</td><td>${c.name}</td></tr>`;
     }
     html += `</table>`;
   }
@@ -1732,7 +1740,13 @@ async function printNonFoilSet() {
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; font-size: 9pt; color: #666; border-bottom: 1px solid #ddd; padding: 2px 6px; }
   td { padding: 4px 6px; font-size: 10pt; border-bottom: 1px solid #f0f0f0; }
-  td:first-child { color: #888; font-size: 9pt; width: 60px; }
+  td:first-child { color: #888; font-size: 9pt; width: 45px; }
+  td:nth-child(2) { width: 20px; text-align:center; }
+  .r-M { color: #b8860b; font-weight:700; }
+  .r-R { color: #cc5500; font-weight:700; }
+  .r-U { color: #1a5276; font-weight:700; }
+  .r-C { color: #666; }
+
   td.langs { font-size: 9pt; color: #555; width: 80px; }
   .none { color: #aaa; font-style: italic; }
 </style></head><body>
@@ -1742,10 +1756,11 @@ async function printNonFoilSet() {
   if (results.length === 0) {
     html += `<div class="none">Nessuna carta posseduta senza foil.</div>`;
   } else {
-    html += `<table><tr><th>#</th><th>Nome carta</th><th>Copie</th></tr>`;
+    html += `<table><tr><th>#</th><th>R</th><th>Nome carta</th><th>Copie</th></tr>`;
     for (const { card: c, normLangs } of results) {
       const cid = c.setCode || String(c.num).padStart(3,'0');
-      html += `<tr><td>${cid}</td><td>${c.name}</td><td class="langs">${normLangs}</td></tr>`;
+      const r = c.rarity || '';
+      html += `<tr><td>${cid}</td><td class="r-${r}">${r}</td><td>${c.name}</td><td class="langs">${normLangs}</td></tr>`;
     }
     html += `</table>`;
   }
@@ -1846,11 +1861,13 @@ async function printNonFoil() {
 
     html += `<h2>${set.name}</h2>
 <div class="set-stats">${nonFoilCards.length} carte possedute senza versione foil</div>
-<table><tr><th>#</th><th>Nome carta</th><th>Copie</th></tr>`;
+<table><tr><th>#</th><th>R</th><th>Nome carta</th><th>Copie</th></tr>`;
 
     for (const { card: c, normLangs } of nonFoilCards) {
       const cid = c.setCode || String(c.num).padStart(3,'0');
-      html += `<tr><td>${cid}</td><td>${c.name}</td><td class="langs">${normLangs}</td></tr>`;
+      const r = c.rarity || '';
+      const cid = c.setCode || String(c.num).padStart(3,'0');
+      html += `<tr><td>${cid}</td><td class="r-${r}">${r}</td><td>${c.name}</td><td class="langs">${normLangs}</td></tr>`;
     }
     html += `</table>`;
   }
