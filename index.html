@@ -1613,7 +1613,8 @@ async function printMissing() {
 <meta charset="UTF-8">
 <title>Carte Mancanti</title>
 <style>
-  body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; padding: 1.5cm; }
+@page { margin: 1cm; }
+  body { font-family: Arial, sans-serif; font-size: 10pt; color: #000; padding: 0; margin: 0; }
   h1 { font-size: 14pt; margin-bottom: 0.1cm; margin-top: 0; }
   .subtitle { font-size: 9pt; color: #666; margin-bottom: 0.3cm; }
   h2 { font-size: 12pt; margin-top: 0.4cm; margin-bottom: 0.1cm; border-bottom: 1px solid #ccc; padding-bottom: 0.05cm; }
@@ -1677,7 +1678,8 @@ async function printMissingSet() {
   let html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
 <title>Mancanti - ${set.name}</title>
 <style>
-  body { font-family: Arial, sans-serif; font-size: 11pt; padding: 1cm 1.5cm 1.5cm 1.5cm; }
+@page { margin: 1cm; }
+  body { font-family: Arial, sans-serif; font-size: 10pt; padding: 0; margin: 0; }
   h1 { font-size: 14pt; margin-bottom: 0.1cm; margin-top: 0; }
   .stats { font-size: 9pt; color: #666; margin-bottom: 0.2cm; }
   table { width: 100%; border-collapse: collapse; }
@@ -1734,7 +1736,8 @@ async function printNonFoilSet() {
   let html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
 <title>Senza Foil - ${set.name}</title>
 <style>
-  body { font-family: Arial, sans-serif; font-size: 11pt; padding: 1cm 1.5cm 1.5cm 1.5cm; }
+@page { margin: 1cm; }
+  body { font-family: Arial, sans-serif; font-size: 10pt; padding: 0; margin: 0; }
   h1 { font-size: 14pt; margin-bottom: 0.1cm; margin-top: 0; }
   .stats { font-size: 9pt; color: #666; margin-bottom: 0.2cm; }
   table { width: 100%; border-collapse: collapse; }
@@ -1822,7 +1825,8 @@ async function printNonFoil() {
 <meta charset="UTF-8">
 <title>Carte Possedute Senza Foil</title>
 <style>
-  body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; padding: 1.5cm; }
+@page { margin: 1cm; }
+  body { font-family: Arial, sans-serif; font-size: 10pt; color: #000; padding: 0; margin: 0; }
   h1 { font-size: 14pt; margin-bottom: 0.1cm; margin-top: 0; }
   .subtitle { font-size: 9pt; color: #666; margin-bottom: 0.3cm; }
   h2 { font-size: 12pt; margin-top: 0.4cm; margin-bottom: 0.1cm; border-bottom: 1px solid #ccc; padding-bottom: 0.05cm; }
