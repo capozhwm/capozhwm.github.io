@@ -1866,7 +1866,6 @@ async function printNonFoil() {
     for (const { card: c, normLangs } of nonFoilCards) {
       const cid = c.setCode || String(c.num).padStart(3,'0');
       const r = c.rarity || '';
-      const cid = c.setCode || String(c.num).padStart(3,'0');
       html += `<tr><td>${cid}</td><td class="r-${r}">${r}</td><td>${c.name}</td><td class="langs">${normLangs}</td></tr>`;
     }
     html += `</table>`;
