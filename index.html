@@ -951,7 +951,7 @@ async function renderHome() {
     const rightDiv = document.createElement('div');
     rightDiv.style.cssText = 'display:flex;align-items:center;gap:0.5rem;flex-shrink:0;';
 
-    if (pct === 100) {
+    if (ownedCount === total) {
       const badge = document.createElement('div');
       badge.style.cssText = 'background:#4ade80;color:#052e16;font-family:Space Mono,monospace;font-size:0.65rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:6px;white-space:nowrap;';
       badge.textContent = '✓ COMPLETA';
