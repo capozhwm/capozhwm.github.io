@@ -654,6 +654,13 @@ body {
         <button class="filter-btn active" id="fMissing" onclick="setFilter('missing')">Mancanti</button>
         <button class="filter-btn" id="fOwned" onclick="setFilter('owned')">Possedute</button>
       </div>
+      <div class="filter-row" id="rarityFilterRow" style="display:none;">
+        <button class="filter-btn rar-btn active" data-r="C" onclick="toggleRarFilter('C')" style="color:#9ca3af;border-color:#9ca3af;">C</button>
+        <button class="filter-btn rar-btn active" data-r="U" onclick="toggleRarFilter('U')" style="color:#93c5fd;border-color:#93c5fd;">U</button>
+        <button class="filter-btn rar-btn active" data-r="R" onclick="toggleRarFilter('R')" style="color:#fb923c;border-color:#fb923c;">R</button>
+        <button class="filter-btn rar-btn active" data-r="M" onclick="toggleRarFilter('M')" style="color:#fbbf24;border-color:#fbbf24;">M</button>
+        <button class="filter-btn rar-btn active" data-r="" onclick="toggleRarFilter('')" style="color:var(--muted);">—</button>
+      </div>
     </div>
 
     <!-- Cards -->
@@ -1315,11 +1322,27 @@ function renderStats(set) {
   `;
 }
 
+const activeRarFilters = new Set(['C','U','R','M','']);
+
+function toggleRarFilter(r) {
+  if (activeRarFilters.has(r)) activeRarFilters.delete(r);
+  else activeRarFilters.add(r);
+  document.querySelectorAll('.rar-btn').forEach(btn => {
+    const on = activeRarFilters.has(btn.dataset.r);
+    btn.classList.toggle('active', on);
+    btn.style.opacity = on ? '1' : '0.35';
+  });
+  renderCards();
+}
+
 function setFilter(f) {
   currentFilter = f;
   ['All','Missing','Owned'].forEach(x => {
     document.getElementById('f'+x).classList.toggle('active', f === x.toLowerCase());
   });
+  // Mostra filtri rarità solo su Mancanti
+  const rarRow = document.getElementById('rarityFilterRow');
+  if (rarRow) rarRow.style.display = f === 'missing' ? 'flex' : 'none';
   renderCards();
 }
 
@@ -1353,7 +1376,13 @@ async function renderCards() {
   cards = cards.filter(c => {
     const isOwned = c.owned && Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0);
     if (currentFilter === 'owned') return isOwned;
-    if (currentFilter === 'missing') return !isOwned;
+    if (currentFilter === 'missing') {
+      if (isOwned) return false;
+      // Applica filtro rarità solo su mancanti
+      const allRar = ['C','U','R','M',''].every(r => activeRarFilters.has(r));
+      if (!allRar) return activeRarFilters.has(c.rarity || '');
+      return true;
+    }
     return true;
   });
 
@@ -1953,6 +1982,7 @@ async function printNonFoil() {
 window.printMissing = printMissing;
 window.printMissingSet = printMissingSet;
 window.toggleSetRarity = toggleSetRarity;
+window.toggleRarFilter = toggleRarFilter;
 window.printNonFoilSet = printNonFoilSet;
 window.printNonFoil = printNonFoil;
 window.togglePrintMenu = togglePrintMenu;
