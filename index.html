@@ -585,6 +585,16 @@ body {
           <button onclick="selectAllPrintSets(true)" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:Syne,sans-serif;font-size:0.72rem;padding:0.3rem;cursor:pointer;">Tutti</button>
           <button onclick="selectAllPrintSets(false)" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:Syne,sans-serif;font-size:0.72rem;padding:0.3rem;cursor:pointer;">Nessuno</button>
         </div>
+        <div style="padding:0.5rem 1rem;border-top:1px solid var(--border);">
+          <div style="font-size:0.7rem;color:var(--muted);font-family:Space Mono,monospace;margin-bottom:0.4rem;">Filtra rarità</div>
+          <div style="display:flex;gap:0.4rem;">
+            <button class="print-rar-btn active" data-r="C" onclick="togglePrintRarity('C')" style="flex:1;padding:0.3rem;border-radius:6px;border:1px solid #9ca3af;background:rgba(156,163,175,0.1);color:#9ca3af;font-family:Syne,sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;">C</button>
+            <button class="print-rar-btn active" data-r="U" onclick="togglePrintRarity('U')" style="flex:1;padding:0.3rem;border-radius:6px;border:1px solid #93c5fd;background:rgba(147,197,253,0.1);color:#93c5fd;font-family:Syne,sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;">U</button>
+            <button class="print-rar-btn active" data-r="R" onclick="togglePrintRarity('R')" style="flex:1;padding:0.3rem;border-radius:6px;border:1px solid #fb923c;background:rgba(251,146,60,0.1);color:#fb923c;font-family:Syne,sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;">R</button>
+            <button class="print-rar-btn active" data-r="M" onclick="togglePrintRarity('M')" style="flex:1;padding:0.3rem;border-radius:6px;border:1px solid #fbbf24;background:rgba(251,191,36,0.1);color:#fbbf24;font-family:Syne,sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;">M</button>
+            <button class="print-rar-btn active" data-r="" onclick="togglePrintRarity('')" style="flex:1;padding:0.3rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:Syne,sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;">—</button>
+          </div>
+        </div>
         <button onclick="printMissing()" style="display:block;width:100%;padding:0.75rem 1rem;background:none;border:none;border-top:1px solid var(--border);color:var(--text);font-family:Syne,sans-serif;font-size:0.85rem;text-align:left;cursor:pointer;">📋 Stampa mancanti</button>
         <button onclick="printNonFoil()" style="display:block;width:100%;padding:0.75rem 1rem;background:none;border:none;border-top:1px solid var(--border);color:var(--text);font-family:Syne,sans-serif;font-size:0.85rem;text-align:left;cursor:pointer;">✨ Stampa senza foil</button>
       </div>
@@ -1642,25 +1652,24 @@ async function printMissing() {
 <div class="subtitle">Generato il ${new Date().toLocaleDateString('it-IT', {day:'2-digit',month:'2-digit',year:'numeric'})}</div>`;
 
   for (const set of setsToPrint) {
-    const missing = set.cards.filter(c => !c.owned || !Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0));
+    const allMissing = set.cards.filter(c => !c.owned || !Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0));
+    const missing = filterByRarity(allMissing);
     const total = set.cards.length;
-    const owned = total - missing.length;
+    const owned = total - allMissing.length;
     const pct = Math.round((owned / total) * 100);
 
-    html += `<h2>${set.name}</h2>
-<div class="set-stats">${owned}/${total} carte (${pct}%) — <strong>${missing.length} mancanti</strong></div>`;
+    if (missing.length === 0) continue;
 
-    if (missing.length === 0) {
-      html += `<div class="no-missing">✓ Set completo!</div>`;
-    } else {
-      html += `<table><tr><th>#</th><th>R</th><th>Nome carta</th></tr>`;
-      for (const c of missing) {
-        const cid = c.setCode || String(c.num).padStart(3,'0');
-        const r = c.rarity || '';
-        html += `<tr><td>${cid}</td><td class="r-${r}">${r}</td><td>${c.name}</td></tr>`;
-      }
-      html += `</table>`;
+    html += `<h2>${set.name}</h2>
+<div class="set-stats">${owned}/${total} carte (${pct}%) — <strong>${missing.length} mancanti mostrate</strong></div>`;
+
+    html += `<table><tr><th>#</th><th>R</th><th>Nome carta</th></tr>`;
+    for (const c of missing) {
+      const cid = c.setCode || String(c.num).padStart(3,'0');
+      const r = c.rarity || '';
+      html += `<tr><td>${cid}</td><td class="r-${r}">${r}</td><td>${c.name}</td></tr>`;
     }
+    html += `</table>`;
   }
 
   html += `</body></html>`;
@@ -1677,9 +1686,10 @@ async function printMissingSet() {
   const set = db.sets.find(s => s.id === currentSetId);
   if (!set) return;
 
-  const missing = set.cards.filter(c => !c.owned || !Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0));
+  const allMissingSet = set.cards.filter(c => !c.owned || !Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0));
+  const missing = filterByRarity(allMissingSet);
   const total = set.cards.length;
-  const owned = total - missing.length;
+  const owned = total - allMissingSet.length;
   const pct = Math.round((owned / total) * 100);
 
   let html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
@@ -1803,6 +1813,26 @@ function selectAllPrintSets(val) {
   document.querySelectorAll('.print-set-cb').forEach(cb => cb.checked = val);
 }
 
+const selectedPrintRarities = new Set(['C','U','R','M','']);
+
+function togglePrintRarity(r) {
+  if (selectedPrintRarities.has(r)) {
+    selectedPrintRarities.delete(r);
+  } else {
+    selectedPrintRarities.add(r);
+  }
+  document.querySelectorAll('.print-rar-btn').forEach(btn => {
+    const active = selectedPrintRarities.has(btn.dataset.r);
+    btn.style.opacity = active ? '1' : '0.3';
+  });
+}
+
+function filterByRarity(cards) {
+  // Se tutte le rarità sono selezionate, non filtrare
+  if (['C','U','R','M',''].every(r => selectedPrintRarities.has(r))) return cards;
+  return cards.filter(c => selectedPrintRarities.has(c.rarity || ''));
+}
+
 function getSelectedSetIds() {
   return [...document.querySelectorAll('.print-set-cb:checked')].map(cb => cb.dataset.setid);
 }
@@ -1901,6 +1931,7 @@ window.printNonFoilSet = printNonFoilSet;
 window.printNonFoil = printNonFoil;
 window.togglePrintMenu = togglePrintMenu;
 window.selectAllPrintSets = selectAllPrintSets;
+window.togglePrintRarity = togglePrintRarity;
 window.getSelectedSetIds = getSelectedSetIds;
 window.openImportModal = openImportModal;
 window.setImportMode = setImportMode;
