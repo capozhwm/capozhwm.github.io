@@ -628,9 +628,19 @@ body {
     <div class="detail-stats" id="detailStats"></div>
 
     <!-- Pulsanti stampa per il set corrente -->
-<div id="printBtns" style="display:flex;gap:0.5rem;padding:0.75rem 1rem 0;border-top:1px solid var(--border);margin-top:0.75rem">
-  <button onclick="printMissingSet()" style="flex:1;padding:0.65rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Syne,sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem">📋 Mancanti</button>
-  <button onclick="printNonFoilSet()" style="flex:1;padding:0.65rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Syne,sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem">✨ Senza foil</button>
+<div id="printBtns" style="padding:0.75rem 1rem 0;border-top:1px solid var(--border);margin-top:0.75rem">
+  <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.5rem;">
+    <span style="font-size:0.7rem;color:var(--muted);font-family:Space Mono,monospace;flex-shrink:0;">Rarità:</span>
+    <button class="set-rar-btn active" data-r="C" onclick="toggleSetRarity('C')" style="padding:0.2rem 0.45rem;border-radius:5px;border:1px solid #9ca3af;background:rgba(156,163,175,0.1);color:#9ca3af;font-family:Syne,sans-serif;font-size:0.7rem;font-weight:700;cursor:pointer;">C</button>
+    <button class="set-rar-btn active" data-r="U" onclick="toggleSetRarity('U')" style="padding:0.2rem 0.45rem;border-radius:5px;border:1px solid #93c5fd;background:rgba(147,197,253,0.1);color:#93c5fd;font-family:Syne,sans-serif;font-size:0.7rem;font-weight:700;cursor:pointer;">U</button>
+    <button class="set-rar-btn active" data-r="R" onclick="toggleSetRarity('R')" style="padding:0.2rem 0.45rem;border-radius:5px;border:1px solid #fb923c;background:rgba(251,146,60,0.1);color:#fb923c;font-family:Syne,sans-serif;font-size:0.7rem;font-weight:700;cursor:pointer;">R</button>
+    <button class="set-rar-btn active" data-r="M" onclick="toggleSetRarity('M')" style="padding:0.2rem 0.45rem;border-radius:5px;border:1px solid #fbbf24;background:rgba(251,191,36,0.1);color:#fbbf24;font-family:Syne,sans-serif;font-size:0.7rem;font-weight:700;cursor:pointer;">M</button>
+    <button class="set-rar-btn active" data-r="" onclick="toggleSetRarity('')" style="padding:0.2rem 0.45rem;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:Syne,sans-serif;font-size:0.7rem;font-weight:700;cursor:pointer;">—</button>
+  </div>
+  <div style="display:flex;gap:0.5rem;">
+    <button onclick="printMissingSet()" style="flex:1;padding:0.65rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Syne,sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem">📋 Mancanti</button>
+    <button onclick="printNonFoilSet()" style="flex:1;padding:0.65rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Syne,sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem">✨ Senza foil</button>
+  </div>
 </div>
 
 <!-- Search & filters -->
@@ -1687,7 +1697,7 @@ async function printMissingSet() {
   if (!set) return;
 
   const allMissingSet = set.cards.filter(c => !c.owned || !Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0));
-  const missing = filterByRarity(allMissingSet);
+  const missing = filterBySetRarity(allMissingSet);
   const total = set.cards.length;
   const owned = total - allMissingSet.length;
   const pct = Math.round((owned / total) * 100);
@@ -1739,7 +1749,7 @@ async function printNonFoilSet() {
   if (!set) return;
 
   const results = [];
-  for (const c of set.cards) {
+  for (const c of filterBySetRarity(set.cards)) {
     if (!c.owned) continue;
     const langs = Object.entries(c.owned);
     const hasNorm = langs.some(([l, v]) => v.qty > 0);
@@ -1807,6 +1817,21 @@ async function togglePrintMenu() {
     </label>`).join('');
 
   dd.style.display = 'block';
+}
+
+const selectedSetRarities = new Set(['C','U','R','M','']);
+
+function toggleSetRarity(r) {
+  if (selectedSetRarities.has(r)) selectedSetRarities.delete(r);
+  else selectedSetRarities.add(r);
+  document.querySelectorAll('.set-rar-btn').forEach(btn => {
+    btn.style.opacity = selectedSetRarities.has(btn.dataset.r) ? '1' : '0.3';
+  });
+}
+
+function filterBySetRarity(cards) {
+  if (['C','U','R','M',''].every(r => selectedSetRarities.has(r))) return cards;
+  return cards.filter(c => selectedSetRarities.has(c.rarity || ''));
 }
 
 function selectAllPrintSets(val) {
@@ -1927,6 +1952,7 @@ async function printNonFoil() {
 // ══════════════════════════════════════════════
 window.printMissing = printMissing;
 window.printMissingSet = printMissingSet;
+window.toggleSetRarity = toggleSetRarity;
 window.printNonFoilSet = printNonFoilSet;
 window.printNonFoil = printNonFoil;
 window.togglePrintMenu = togglePrintMenu;
