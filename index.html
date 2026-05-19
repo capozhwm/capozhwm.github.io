@@ -661,6 +661,12 @@ body {
         <button class="filter-btn rar-btn active" data-r="M" onclick="toggleRarFilter('M')" style="color:#fbbf24;border-color:#fbbf24;">M</button>
         <button class="filter-btn rar-btn active" data-r="" onclick="toggleRarFilter('')" style="color:var(--muted);">—</button>
       </div>
+      <div class="filter-row" id="langFilterRow" style="display:none;">
+        <button class="filter-btn lang-btn active" data-l="all" onclick="setLangFilter('all')">Tutte</button>
+        <button class="filter-btn lang-btn" data-l="IT" onclick="setLangFilter('IT')">🇮🇹 IT</button>
+        <button class="filter-btn lang-btn" data-l="EN" onclick="setLangFilter('EN')">🇬🇧 EN</button>
+        <button class="filter-btn lang-btn" data-l="JP" onclick="setLangFilter('JP')">🇯🇵 JP</button>
+      </div>
     </div>
 
     <!-- Cards -->
@@ -1260,7 +1266,7 @@ function closeConfirm() {
 // ══════════════════════════════════════════════
 //  DETAIL / CARDS
 // ══════════════════════════════════════════════
-const LANGS = ['IT','EN','JP','KR'];
+const LANGS = ['IT','EN','JP'];
 
 async function openSet(setId) {
   currentSetId = setId;
@@ -1323,6 +1329,15 @@ function renderStats(set) {
 }
 
 const activeRarFilters = new Set(['C','U','R','M','']);
+let currentLangFilter = 'all';
+
+function setLangFilter(l) {
+  currentLangFilter = l;
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.l === l);
+  });
+  renderCards();
+}
 
 function toggleRarFilter(r) {
   if (activeRarFilters.has(r)) activeRarFilters.delete(r);
@@ -1340,9 +1355,12 @@ function setFilter(f) {
   ['All','Missing','Owned'].forEach(x => {
     document.getElementById('f'+x).classList.toggle('active', f === x.toLowerCase());
   });
-  // Mostra filtri rarità solo su Mancanti
+  // Mostra filtri rarità solo su Mancanti, lingua solo su Possedute
   const rarRow = document.getElementById('rarityFilterRow');
   if (rarRow) rarRow.style.display = f === 'missing' ? 'flex' : 'none';
+  const langRow = document.getElementById('langFilterRow');
+  if (langRow) langRow.style.display = f === 'owned' ? 'flex' : 'none';
+  if (f !== 'owned') { currentLangFilter = 'all'; document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.l === 'all')); }
   renderCards();
 }
 
@@ -1375,7 +1393,11 @@ async function renderCards() {
   // Filter owned status
   cards = cards.filter(c => {
     const isOwned = c.owned && Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0);
-    if (currentFilter === 'owned') return isOwned;
+    if (currentFilter === 'owned') {
+      if (!isOwned) return false;
+      if (currentLangFilter === 'all') return true;
+      return c.owned && c.owned[currentLangFilter] && ((c.owned[currentLangFilter].qty||0) > 0 || (c.owned[currentLangFilter].foilQty||0) > 0);
+    }
     if (currentFilter === 'missing') {
       if (isOwned) return false;
       // Applica filtro rarità solo su mancanti
@@ -1772,20 +1794,48 @@ async function printMissingSet() {
   setTimeout(() => win.print(), 400);
 }
 
+function showLangPicker() {
+  return new Promise(resolve => {
+    const existing = document.getElementById('langPickerOverlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'langPickerOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem;';
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem;width:100%;max-width:320px;">
+        <div style="font-size:1rem;font-weight:800;margin-bottom:1rem;">Filtra per lingua</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;">
+          <button onclick="window._resolveLang('all')" style="padding:0.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Syne,sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;">🌍 Tutte le lingue</button>
+          <button onclick="window._resolveLang('IT')" style="padding:0.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Syne,sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;">🇮🇹 Solo Italiano</button>
+          <button onclick="window._resolveLang('EN')" style="padding:0.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Syne,sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;">🇬🇧 Solo Inglese</button>
+          <button onclick="window._resolveLang('JP')" style="padding:0.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Syne,sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;">🇯🇵 Solo Giapponese</button>
+        </div>
+        <button onclick="window._resolveLang(null)" style="margin-top:0.75rem;width:100%;padding:0.6rem;background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:Syne,sans-serif;font-size:0.85rem;cursor:pointer;">Annulla</button>
+      </div>`;
+    window._resolveLang = (lang) => { overlay.remove(); resolve(lang); };
+    document.body.appendChild(overlay);
+  });
+}
+window._resolveLang = () => {};
+
 async function printNonFoilSet() {
   const db = await getDB();
   const set = db.sets.find(s => s.id === currentSetId);
   if (!set) return;
 
+  const langChoice = await showLangPicker();
+  if (langChoice === null) return; // annullato
+
   const results = [];
   for (const c of filterBySetRarity(set.cards)) {
     if (!c.owned) continue;
-    const langs = Object.entries(c.owned);
+    const allLangs = Object.entries(c.owned);
+    const langs = langChoice === 'all' ? allLangs : allLangs.filter(([l]) => l === langChoice);
     const hasNorm = langs.some(([l, v]) => v.qty > 0);
-    const hasFoil = langs.some(([l, v]) => v.foilQty > 0);
+    const hasFoil = Object.entries(c.owned).some(([l, v]) => v.foilQty > 0);
     if (hasNorm && !hasFoil) {
       const normLangs = langs.filter(([l,v]) => v.qty > 0).map(([l,v]) => `${l}×${v.qty}`).join(', ');
-      results.push({ card: c, normLangs });
+      if (normLangs) results.push({ card: c, normLangs });
     }
   }
 
@@ -1982,7 +2032,9 @@ async function printNonFoil() {
 window.printMissing = printMissing;
 window.printMissingSet = printMissingSet;
 window.toggleSetRarity = toggleSetRarity;
+window.resolveLang = (l) => {};
 window.toggleRarFilter = toggleRarFilter;
+window.setLangFilter = setLangFilter;
 window.printNonFoilSet = printNonFoilSet;
 window.printNonFoil = printNonFoil;
 window.togglePrintMenu = togglePrintMenu;
