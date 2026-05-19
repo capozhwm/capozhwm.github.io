@@ -663,9 +663,9 @@ body {
       </div>
       <div class="filter-row" id="langFilterRow" style="display:none;">
         <button class="filter-btn lang-btn active" data-l="all" onclick="setLangFilter('all')">Tutte</button>
-        <button class="filter-btn lang-btn" data-l="IT" onclick="setLangFilter('IT')">🇮🇹 IT</button>
-        <button class="filter-btn lang-btn" data-l="EN" onclick="setLangFilter('EN')">🇬🇧 EN</button>
-        <button class="filter-btn lang-btn" data-l="JP" onclick="setLangFilter('JP')">🇯🇵 JP</button>
+        <button class="filter-btn lang-btn" data-l="IT" onclick="setLangFilter('IT')">🇮🇹 IT <span id="lcount-IT" style="font-size:0.65rem;opacity:0.7;"></span></button>
+        <button class="filter-btn lang-btn" data-l="EN" onclick="setLangFilter('EN')">🇬🇧 EN <span id="lcount-EN" style="font-size:0.65rem;opacity:0.7;"></span></button>
+        <button class="filter-btn lang-btn" data-l="JP" onclick="setLangFilter('JP')">🇯🇵 JP <span id="lcount-JP" style="font-size:0.65rem;opacity:0.7;"></span></button>
       </div>
     </div>
 
@@ -1331,6 +1331,24 @@ function renderStats(set) {
 const activeRarFilters = new Set(['C','U','R','M','']);
 let currentLangFilter = 'all';
 
+function updateLangCounts() {
+  const db_cached = _setsCache;
+  if (!db_cached || !currentSetId) return;
+  const set = db_cached.sets.find(s => s.id === currentSetId);
+  if (!set) return;
+  // Leggi owned dalla cache
+  const owned = (_ownedCache && _ownedCache.owned) ? _ownedCache.owned : {};
+  ['IT','EN','JP'].forEach(lang => {
+    const count = set.cards.filter(c => {
+      const key = currentSetId + '_' + (c.setCode || c.num);
+      const o = owned[key];
+      return o && o[lang] && ((o[lang].qty||0) > 0 || (o[lang].foilQty||0) > 0);
+    }).length;
+    const el = document.getElementById('lcount-' + lang);
+    if (el) el.textContent = count > 0 ? count : '';
+  });
+}
+
 function setLangFilter(l) {
   currentLangFilter = l;
   document.querySelectorAll('.lang-btn').forEach(btn => {
@@ -1361,6 +1379,7 @@ function setFilter(f) {
   const langRow = document.getElementById('langFilterRow');
   if (langRow) langRow.style.display = f === 'owned' ? 'flex' : 'none';
   if (f !== 'owned') { currentLangFilter = 'all'; document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.l === 'all')); }
+  if (f === 'owned') updateLangCounts();
   renderCards();
 }
 
