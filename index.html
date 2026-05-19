@@ -1011,7 +1011,7 @@ async function renderHome() {
       <div class="set-card-stats">
         <span>${pct}% completato</span>
         <span>${total - ownedCount} mancanti</span>
-        ${foilCount > 0 ? `<span>✨ ${foilCount} foil</span>` : ''}
+        ${foilCount > 0 ? `<span>✨ ${foilCount}/${ownedCount} foil</span>` : ''}
       </div>
     `;
     card.appendChild(rest);
@@ -1081,7 +1081,7 @@ function countOwnedCards(set) {
 function countFoilCards(set) {
   let n = 0;
   set.cards.forEach(c => {
-    if (c.owned) Object.values(c.owned).forEach(v => { if (v.foilQty > 0) n++; });
+    if (c.owned) Object.values(c.owned).forEach(v => { if ((v.foilQty||0) > 0) n++; });
   });
   return n;
 }
