@@ -918,7 +918,7 @@ async function toggleDream(setId, setName, cardKey, cardName, rarity) {
     const db = await getDB();
     const set = db.sets.find(s => s.id === setId);
     if (set) {
-      const card = set.cards.find(c => (c.setCode || String(c.num)) === cardKey);
+      const card = set.cards.find(c => cardId(c) === cardKey);
       if (card) refreshCardRow(set, card, setId);
       renderStats(set);
     }
