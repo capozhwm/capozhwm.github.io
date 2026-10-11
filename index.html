@@ -1061,7 +1061,7 @@ async function renderHome() {
       </div>
       <div class="set-card-stats">
         <span>${pct}% completato</span>
-        <span>${total - ownedCount} mancanti</span>
+        <span>${total - ownedCount - dreamCountForSet} mancanti${dreamCountForSet > 0 ? ` &nbsp;·&nbsp; 🌙 ${dreamCountForSet} sogni` : ''}</span>
         ${foilCount > 0 ? `<span>✨ ${foilCount}/${ownedCount} foil</span>` : ''}
       </div>
     `;
