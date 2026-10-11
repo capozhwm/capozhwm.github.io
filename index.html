@@ -294,6 +294,8 @@ body {
 }
 
 .card-row.owned { border-color: rgba(74,222,128,0.25); }
+.card-row.dreamed { border-color: rgba(124,106,255,0.3); }
+.card-row.dreamed .card-row-header { opacity: 0.85; }
 
 .card-row-header {
   display: flex; align-items: center; gap: 0.75rem;
@@ -610,9 +612,12 @@ body {
 
   <!-- HOME SCREEN -->
   <div class="screen active" id="homeScreen">
-    <div class="home-header">
-      <div class="home-title">CAPOZ MTG VAULT</div>
-      <div class="home-sub" id="homeSubtitle">Nessun set caricato</div>
+    <div class="home-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div class="home-title">CAPOZ MTG VAULT</div>
+        <div class="home-sub" id="homeSubtitle">Nessun set caricato</div>
+      </div>
+      <button id="dreamsHomeBtn" onclick="openDreamsScreen()" style="background:rgba(124,106,255,0.15);border:1px solid var(--accent);color:var(--accent);border-radius:10px;padding:0.45rem 0.75rem;font-family:Syne,sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;margin-top:0.2rem;">🌙 Sogni</button>
     </div>
     <div class="sets-list" id="setsList">
       <div class="empty-state" id="emptyState">
@@ -620,6 +625,11 @@ body {
         <div class="empty-text">Nessun set caricato.<br>Premi <strong>+</strong> per importare una lista CSV.</div>
       </div>
     </div>
+  </div>
+
+  <!-- DREAMS SCREEN -->
+  <div class="screen" id="dreamsScreen">
+    <div id="dreamsContent" style="padding:0.75rem 1rem 6rem;"></div>
   </div>
 
   <!-- DETAIL SCREEN -->
@@ -859,20 +869,59 @@ async function loadOwned() {
   if (_ownedCache) return _ownedCache;
   try {
     const snap = await getDoc(ownedRef());
-    _ownedCache = snap.exists() ? snap.data() : { owned: {} };
+    const data = snap.exists() ? snap.data() : { owned: {} };
+    if (!data.dreams) data.dreams = {};
+    _ownedCache = data;
   } catch(e) {
-    _ownedCache = { owned: {} };
+    _ownedCache = { owned: {}, dreams: {} };
   }
   return _ownedCache;
 }
 
 async function saveOwned(data) {
+  if (!data.dreams) data.dreams = {};
   _ownedCache = data;
   localStorage.setItem('tcg_owned_' + currentUser.uid, JSON.stringify(data));
   try {
     await setDoc(ownedRef(), data);
   } catch(e) {
     showToast('⚠ Salvataggio online fallito');
+  }
+}
+
+// ── DREAMS ──
+function getDreams() {
+  return (_ownedCache && _ownedCache.dreams) ? _ownedCache.dreams : {};
+}
+
+function isDream(setId, cardKey) {
+  const dreams = getDreams();
+  return !!dreams[setId + '___' + cardKey];
+}
+
+async function toggleDream(setId, setName, cardKey, cardName, rarity) {
+  const ownedData = await loadOwned();
+  if (!ownedData.dreams) ownedData.dreams = {};
+  const dreamsKey = setId + '___' + cardKey;
+  if (ownedData.dreams[dreamsKey]) {
+    delete ownedData.dreams[dreamsKey];
+    showToast('🌙 Rimosso dai sogni');
+  } else {
+    ownedData.dreams[dreamsKey] = { setName, cardName, rarity: rarity || '' };
+    showToast('🌙 Aggiunto ai sogni');
+  }
+  await saveOwned(ownedData);
+  // Refresh UI
+  if (currentScreen === 'dreams') {
+    renderDreamsScreen();
+  } else if (currentSetId) {
+    const db = await getDB();
+    const set = db.sets.find(s => s.id === setId);
+    if (set) {
+      const card = set.cards.find(c => (c.setCode || String(c.num)) === cardKey);
+      if (card) refreshCardRow(set, card, setId);
+      renderStats(set);
+    }
   }
 }
 
@@ -937,6 +986,7 @@ let currentFilter = 'missing';
 let currentSort = 'number'; // 'number' | 'name'
 let pendingCSV = null;
 let confirmCallback = null;
+let currentScreen = 'home'; // 'home' | 'detail' | 'dreams'
 
 // ══════════════════════════════════════════════
 //  HOME
@@ -984,10 +1034,11 @@ async function renderHome() {
     const rightDiv = document.createElement('div');
     rightDiv.style.cssText = 'display:flex;align-items:center;gap:0.5rem;flex-shrink:0;';
 
-    if (ownedCount === total) {
+    const dreamCountForSet = Object.keys(getDreams()).filter(k => k.startsWith(set.id + '___')).length;
+    if (ownedCount === total || (ownedCount + dreamCountForSet === total && dreamCountForSet > 0)) {
       const badge = document.createElement('div');
       badge.style.cssText = 'background:#4ade80;color:#052e16;font-family:Space Mono,monospace;font-size:0.65rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:6px;white-space:nowrap;';
-      badge.textContent = '✓ COMPLETA';
+      badge.textContent = ownedCount === total ? '✓ COMPLETA' : '✓ COMPLETA*';
       rightDiv.appendChild(badge);
     } else {
       const countDiv = document.createElement('div');
@@ -1075,7 +1126,12 @@ async function renderHome() {
 }
 
 function countOwnedCards(set) {
-  return set.cards.filter(c => c.owned && Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0)).length;
+  const dreams = getDreams();
+  return set.cards.filter(c => {
+    const key = set.id + '___' + (c.setCode || String(c.num));
+    if (dreams[key]) return false;
+    return c.owned && Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0);
+  }).length;
 }
 
 function countFoilCards(set) {
@@ -1270,6 +1326,7 @@ const LANGS = ['IT','EN','JP'];
 
 async function openSet(setId) {
   currentSetId = setId;
+  currentScreen = 'detail';
   currentFilter = 'missing';
   currentSort = 'number';
   document.getElementById('searchInput').value = '';
@@ -1292,20 +1349,23 @@ async function openSet(setId) {
 
 function goHome() {
   currentSetId = null;
+  currentScreen = 'home';
   document.getElementById('detailScreen').classList.remove('active');
+  document.getElementById('dreamsScreen').classList.remove('active');
   document.getElementById('homeScreen').classList.add('active');
-  document.getElementById('topbarTitle').textContent = 'Collezione TCG';
+  document.getElementById('topbarTitle').textContent = 'CAPOZ MTG VAULT';
   document.getElementById('backBtn').style.display = 'none';
   document.getElementById('sortBtn').style.display = 'none';
   document.getElementById('exportBtn').style.display = 'none';
-  document.getElementById('fab').style.display = 'flex';
+  if (isAdmin) document.getElementById('fab').style.display = 'flex';
   renderHome();
 }
 
 function renderStats(set) {
   const total = set.cards.length;
-  const owned = countOwnedCards(set);
-  const missing = total - owned;
+  const owned = countOwnedCards(set); // excludes dreamed
+  const dreamCount = Object.keys(getDreams()).filter(k => k.startsWith(set.id + '___')).length;
+  const missing = total - owned - dreamCount;
   const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
   const foil = countFoilCards(set);
 
@@ -1315,13 +1375,14 @@ function renderStats(set) {
   });
 
   document.getElementById('detailStats').innerHTML = `
-    <div class="stats-grid">
+    <div class="stats-grid" style="grid-template-columns:repeat(${dreamCount > 0 ? 4 : 3},1fr);">
       <div class="stat-box"><div class="stat-num">${total}</div><div class="stat-label">Totale</div></div>
       <div class="stat-box"><div class="stat-num" style="color:var(--green)">${owned}</div><div class="stat-label">Possedute</div></div>
-      <div class="stat-box"><div class="stat-num" style="color:var(--red)">${missing}</div><div class="stat-label">Mancanti</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:var(--red)">${missing < 0 ? 0 : missing}</div><div class="stat-label">Mancanti</div></div>
+      ${dreamCount > 0 ? `<div class="stat-box"><div class="stat-num" style="color:var(--accent)">${dreamCount}</div><div class="stat-label">Sogni</div></div>` : ''}
     </div>
     <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-    <div class="progress-label">${pct}% completato${foil > 0 ? ` · ✨ ${foil} foil` : ''}</div>
+    <div class="progress-label">${pct}% completato${foil > 0 ? ` · ✨ ${foil} foil` : ''}${dreamCount > 0 ? ` · 🌙 ${dreamCount} sogni` : ''}</div>
     <div class="lang-stats">
       ${LANGS.map(l => `<div class="lang-chip">${l} <span>${langCounts[l]}</span></div>`).join('')}
     </div>
@@ -1411,13 +1472,17 @@ async function renderCards() {
 
   // Filter owned status
   cards = cards.filter(c => {
-    const isOwned = c.owned && Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0);
+    const cid = cardId(c);
+    const dreamed = isDream(currentSetId, cid);
+    const isOwned = !dreamed && c.owned && Object.values(c.owned).some(v => v.qty > 0 || v.foilQty > 0);
     if (currentFilter === 'owned') {
       if (!isOwned) return false;
       if (currentLangFilter === 'all') return true;
       return c.owned && c.owned[currentLangFilter] && ((c.owned[currentLangFilter].qty||0) > 0 || (c.owned[currentLangFilter].foilQty||0) > 0);
     }
     if (currentFilter === 'missing') {
+      // Dreamed cards show in missing view too (they're excluded from owned)
+      if (isOwned && !dreamed) return false;
       if (isOwned) return false;
       // Applica filtro rarità solo su mancanti
       const allRar = ['C','U','R','M',''].every(r => activeRarFilters.has(r));
@@ -1455,9 +1520,10 @@ function buildCardRow(card, setId) {
   const cid = cardId(card);
   const isOwned = card.owned && Object.values(card.owned).some(v => v.qty > 0 || v.foilQty > 0);
   const totalQty = card.owned ? Object.values(card.owned).reduce((a,v) => a + (v.qty||0) + (v.foilQty||0), 0) : 0;
+  const isDreamed = isDream(setId, cid);
 
   const row = document.createElement('div');
-  row.className = 'card-row' + (isOwned ? ' owned' : '');
+  row.className = 'card-row' + (isOwned ? ' owned' : '') + (isDreamed ? ' dreamed' : '');
   row.id = `row-${setId}-${cid}`;
 
   const langRowsHTML = LANGS.map(lang => {
@@ -1494,6 +1560,7 @@ function buildCardRow(card, setId) {
   }).join('');
 
   const hasFoil = card.owned && Object.values(card.owned).some(v => v.foilQty > 0);
+  const setNameForDream = ((_setsCache && _setsCache.sets) ? (_setsCache.sets.find(s => s.id === setId) || {}).name : '') || '';
   row.innerHTML = `
     <div class="card-row-header" onclick="toggleExpand('${setId}', '${cid}')">
       <div class="card-num">#${cid}</div>
@@ -1505,6 +1572,7 @@ function buildCardRow(card, setId) {
           'background:rgba(156,163,175,0.15);color:#9ca3af;border:1px solid #9ca3af;'
         }">${card.rarity}</span>` : ''}
         <a href="https://scryfall.com/search?q=!%22${encodeURIComponent(card.name)}%22" target="_blank" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--accent);">${esc(card.name)}</a>
+        ${isDreamed ? '<span style="font-size:0.78rem;" title="Carta sogno">🌙</span>' : ''}
         ${totalQty > 0 ? Object.entries(card.owned)
           .filter(([l,v]) => (v.qty||0) > 0 || (v.foilQty||0) > 0)
           .map(([l,v]) => {
@@ -1514,6 +1582,9 @@ function buildCardRow(card, setId) {
             return parts.join('');
           }).join('<span style="color:var(--muted);font-size:0.6rem;"> · </span>') : ''}
       </div>
+      <button onclick="event.stopPropagation();toggleDream('${setId}', ${JSON.stringify(setNameForDream)}, '${cid}', ${JSON.stringify(card.name)}, '${card.rarity||''}')"
+        title="${isDreamed ? 'Rimuovi dai sogni' : 'Aggiungi ai sogni'}"
+        style="background:${isDreamed ? 'rgba(124,106,255,0.25)' : 'none'};border:${isDreamed ? '1px solid var(--accent)' : 'none'};border-radius:6px;font-size:1rem;cursor:pointer;padding:0.2rem 0.35rem;flex-shrink:0;line-height:1;">🌙</button>
       <div class="card-expand-icon">▾</div>
     </div>
     <div class="card-detail">
@@ -1571,7 +1642,8 @@ function refreshCardRow(set, card, setId) {
   const newRow = buildCardRow(card, setId);
   if (wasExpanded) newRow.classList.add('expanded');
 
-  const isOwned = card.owned && Object.values(card.owned).some(v => v.qty > 0 || v.foilQty > 0);
+  const dreamed = isDream(setId, cardId(card));
+  const isOwned = !dreamed && card.owned && Object.values(card.owned).some(v => v.qty > 0 || v.foilQty > 0);
   const shouldShow = currentFilter === 'all' ||
     (currentFilter === 'owned' && isOwned) ||
     (currentFilter === 'missing' && !isOwned);
@@ -1589,6 +1661,71 @@ async function refreshStats(set) {
   const db = await getDB();
   const freshSet = db.sets.find(s => s.id === set.id);
   if (freshSet) renderStats(freshSet);
+}
+
+// ══════════════════════════════════════════════
+//  DREAMS SCREEN
+// ══════════════════════════════════════════════
+function openDreamsScreen() {
+  currentScreen = 'dreams';
+  document.getElementById('homeScreen').classList.remove('active');
+  document.getElementById('detailScreen').classList.remove('active');
+  document.getElementById('dreamsScreen').classList.add('active');
+  document.getElementById('topbarTitle').textContent = '🌙 Carte Sogno';
+  document.getElementById('backBtn').style.display = 'block';
+  document.getElementById('sortBtn').style.display = 'none';
+  document.getElementById('exportBtn').style.display = 'none';
+  document.getElementById('fab').style.display = 'none';
+  renderDreamsScreen();
+  document.getElementById('mainScroll').scrollTop = 0;
+}
+
+function renderDreamsScreen() {
+  const dreams = getDreams();
+  const container = document.getElementById('dreamsContent');
+
+  const entries = Object.entries(dreams);
+  if (entries.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding:4rem 2rem;text-align:center;">
+        <span class="empty-icon">🌙</span>
+        <div class="empty-text">Nessuna carta sogno.<br>Premi 🌙 su una carta per aggiungerla ai sogni.</div>
+      </div>`;
+    return;
+  }
+
+  // Group by set
+  const bySet = {};
+  entries.forEach(([key, val]) => {
+    const setId = key.split('___')[0];
+    const cardKey = key.split('___').slice(1).join('___');
+    if (!bySet[setId]) bySet[setId] = { setName: val.setName, cards: [] };
+    bySet[setId].cards.push({ key: cardKey, cardName: val.cardName, rarity: val.rarity, dreamsKey: key });
+  });
+
+  let html = '';
+  for (const [setId, group] of Object.entries(bySet)) {
+    html += `<div style="margin-bottom:1.5rem;">
+      <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--accent);font-family:Space Mono,monospace;margin-bottom:0.5rem;padding:0 0.25rem;">${esc(group.setName || setId)}</div>`;
+    group.cards.forEach(c => {
+      const rarColor = c.rarity === 'M' ? '#fbbf24' : c.rarity === 'R' ? '#fb923c' : c.rarity === 'U' ? '#93c5fd' : '#9ca3af';
+      html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0.65rem 0.75rem;margin-bottom:0.4rem;display:flex;align-items:center;gap:0.75rem;">
+        ${c.rarity ? `<span style="font-size:0.6rem;font-weight:700;padding:0.1rem 0.3rem;border-radius:4px;flex-shrink:0;background:${rarColor}22;color:${rarColor};border:1px solid ${rarColor};">${c.rarity}</span>` : ''}
+        <span style="flex:1;font-size:0.88rem;font-weight:600;">${esc(c.cardName)}</span>
+        <span style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--muted);">#${c.key}</span>
+        <button onclick="toggleDream('${setId}', ${JSON.stringify(group.setName || setId)}, '${c.key}', ${JSON.stringify(c.cardName)}, '${c.rarity||''}')"
+          title="Rimuovi dai sogni"
+          style="background:var(--red-dim);border:1px solid var(--red);color:var(--red);border-radius:6px;font-size:0.75rem;font-weight:700;cursor:pointer;padding:0.25rem 0.5rem;flex-shrink:0;">✕</button>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  container.innerHTML = `
+    <div style="padding:0.5rem 0 0.25rem;">
+      <div style="font-family:Space Mono,monospace;font-size:0.7rem;color:var(--muted);margin-bottom:1rem;">${entries.length} carte sogno in ${Object.keys(bySet).length} set</div>
+      ${html}
+    </div>`;
 }
 
 // ══════════════════════════════════════════════
@@ -2048,6 +2185,9 @@ async function printNonFoil() {
 //  ESPONI FUNZIONI AL SCOPE GLOBALE
 //  (necessario con type="module")
 // ══════════════════════════════════════════════
+window.toggleDream = toggleDream;
+window.openDreamsScreen = openDreamsScreen;
+window.renderDreamsScreen = renderDreamsScreen;
 window.printMissing = printMissing;
 window.printMissingSet = printMissingSet;
 window.toggleSetRarity = toggleSetRarity;
@@ -2096,8 +2236,10 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && currentUser) {
     _setsCache = null;
     _ownedCache = null;
-    if (currentSetId) {
+    if (currentScreen === 'detail' && currentSetId) {
       renderCards();
+    } else if (currentScreen === 'dreams') {
+      loadOwned().then(() => renderDreamsScreen());
     } else {
       renderHome();
     }
