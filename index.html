@@ -1582,7 +1582,7 @@ function buildCardRow(card, setId) {
             return parts.join('');
           }).join('<span style="color:var(--muted);font-size:0.6rem;"> · </span>') : ''}
       </div>
-      <button onclick="event.stopPropagation();toggleDream('${setId}', ${JSON.stringify(setNameForDream)}, '${cid}', ${JSON.stringify(card.name)}, '${card.rarity||''}')"
+      <button id="dreambtn-${setId}-${cid}"
         title="${isDreamed ? 'Rimuovi dai sogni' : 'Aggiungi ai sogni'}"
         style="background:${isDreamed ? 'rgba(124,106,255,0.25)' : 'none'};border:${isDreamed ? '1px solid var(--accent)' : 'none'};border-radius:6px;font-size:1rem;cursor:pointer;padding:0.2rem 0.35rem;flex-shrink:0;line-height:1;">🌙</button>
       <div class="card-expand-icon">▾</div>
@@ -1591,6 +1591,16 @@ function buildCardRow(card, setId) {
       ${langRowsHTML}
     </div>
   `;
+
+  // Aggiungi listener separato per evitare propagazione verso toggleExpand
+  const dreamBtn = row.querySelector(`#dreambtn-${setId}-${cid}`);
+  if (dreamBtn) {
+    dreamBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      toggleDream(setId, setNameForDream, cid, card.name, card.rarity || '');
+    });
+  }
 
   return row;
 }
